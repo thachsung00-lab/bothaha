@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const db = require('../database/db');
-const { playSlot, createSlotResultEmbed } = require('../utils/slotGame');
+const { playSlot, createSlotResultEmbed, createSlotActionRows, createSlotPromptPayload } = require('../utils/slotGame');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -8,10 +8,10 @@ module.exports = {
     .setDescription('🎰 Quay Máy Quay Xèng Slot Machine (Nổ Hũ x20 XCCoin)')
     .addIntegerOption(opt =>
       opt.setName('amount')
-        .setDescription('Số XCCoin đặt cược (Tối đa 10,000)')
+        .setDescription('Số XCCoin đặt cược (Tối đa 10,000, để trống để chọn nút cược nhanh)')
         .setMinValue(1)
         .setMaxValue(10000)
-        .setRequired(true)
+        .setRequired(false)
     ),
 
   async execute(interaction) {
@@ -23,6 +23,16 @@ module.exports = {
 
     const user = db.getUser(userId, guildId);
     const balance = user.xccoin || 0;
+
+    // Nếu không nhập số tiền: hiển thị bảng chọn cược nhanh
+    if (!amount) {
+      const promptPayload = createSlotPromptPayload(interaction.user, balance);
+      await interaction.editReply(promptPayload);
+      setTimeout(() => {
+        interaction.deleteReply().catch(() => {});
+      }, 30000);
+      return;
+    }
 
     if (balance < amount) {
       return interaction.editReply({
@@ -47,7 +57,7 @@ module.exports = {
     const updatedUser = db.getUser(userId, guildId);
     const embed = createSlotResultEmbed(interaction.user, result, updatedUser.xccoin || 0);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed], components: [createSlotActionRows()] });
 
     // Tự động xóa kết quả sau 15 giây để giữ kênh gọn gàng
     setTimeout(() => {

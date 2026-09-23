@@ -38,8 +38,8 @@ module.exports = {
           value: 'Cài đặt Bảng Sòng Bạc & Máy Quay Slot XCCoin cố định tại kênh chỉ định kèm các nút cược nhanh.'
         },
         {
-          name: '🎰 /slot amount:[tiền cược]',
-          value: 'Quay Máy Quay Xèng Slot Machine (Cược tối đa 10,000 Coin). Nổ hũ 7️⃣7️⃣7️⃣ **x20 lần cược**, Kim Cương x10, Crown x7, Bell x5!'
+          name: '🎰 /slot [amount: optional]',
+          value: 'Quay Máy Quay Xèng Slot Machine (Nút cược nhanh 100, 500, 1000, 5000 hoặc nhập tùy ý). Nổ hũ 7️⃣7️⃣7️⃣ **x20 lần cược**!'
         },
         {
           name: '🃏 /baicao amount:[tiền cược]',

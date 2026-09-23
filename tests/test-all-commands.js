@@ -6,7 +6,7 @@ const path = require('path');
 const db = require('../src/database/db');
 const levelHandler = require('../src/handlers/levelHandler');
 const { playBaiCao, createShuffledDeck, evaluateHand } = require('../src/utils/cardGame');
-const { playSlot, createSlotResultEmbed, createSlotRulesEmbed } = require('../src/utils/slotGame');
+const { playSlot, createSlotResultEmbed, createSlotRulesEmbed, createSlotActionRows, createSlotPromptPayload } = require('../src/utils/slotGame');
 const { determineWinner, playSoloRps, RPS_CHOICES } = require('../src/utils/rpsGame');
 const { createSoloRpsPromptPayload, executeSoloRps } = require('../src/handlers/rpsSoloHandler');
 const { createRpsRoom, joinRpsRoom, makeRpsChoice, cancelRpsRoom } = require('../src/handlers/rpsPvpHandler');
@@ -237,14 +237,29 @@ async function runTests() {
     assert.strictEqual(game.botCards.length, 3);
   });
 
-  // 3. Kiểm tra Hệ thống Máy Quay Slot (Slot Machine / Nổ Hũ x20)
-  await test('Slot Machine: Random Spin, Payout & Symbols Evaluation', () => {
+  // 3. Kiểm tra Hệ thống Máy Quay Slot (Slot Machine / Nổ Hũ x20) & Nút Cược Nhanh
+  await test('Slot Machine: Random Spin, Payout, Symbols & Quick Bet Rows', () => {
     const res = playSlot(1000);
     assert.strictEqual(res.reels.length, 3);
     assert.strictEqual(res.reelEmojis.length, 3);
     assert.ok(['JACKPOT', 'TRIPLE', 'LOSE'].includes(res.winType));
     assert.ok(typeof res.payout === 'number');
     assert.ok(typeof res.earnedXp === 'number' && res.earnedXp >= 10);
+
+    // Kiểm tra hàng nút cược nhanh: 100, 500, 1000, 5000, tùy ý
+    const quickRow = createSlotActionRows();
+    assert.strictEqual(quickRow.components.length, 5);
+    assert.strictEqual(quickRow.components[0].data.custom_id, 'btn_game_slot_quick_100');
+    assert.strictEqual(quickRow.components[1].data.custom_id, 'btn_game_slot_quick_500');
+    assert.strictEqual(quickRow.components[2].data.custom_id, 'btn_game_slot_quick_1000');
+    assert.strictEqual(quickRow.components[3].data.custom_id, 'btn_game_slot_quick_5000');
+    assert.strictEqual(quickRow.components[4].data.custom_id, 'btn_game_slot_custom');
+
+    // Kiểm tra giao diện chọn cược nhanh /slot (không nhập amount)
+    const prompt = createSlotPromptPayload({ id: 'u1' }, 5000);
+    assert.ok(prompt.embeds && prompt.components);
+    assert.strictEqual(prompt.components.length, 1);
+    assert.strictEqual(prompt.components[0].components.length, 5);
   });
 
   // 4. Kiểm tra Luật Oẳn Tù Tì (Kéo Búa Bao Engine)
@@ -345,11 +360,19 @@ async function runTests() {
     const gid = 'guild_slot_rps';
     db.addXCCoin(uid, gid, 10000);
 
-    // Lệnh /slot với cược 1 Coin
+    // Lệnh /slot với cược 1 Coin (kèm các nút cược nhanh)
     const intSlot = createMockInteraction(uid, gid, { amount: 1 });
     await slotCmd.execute(intSlot);
     const resSlot = intSlot.getResults();
     assert.ok(resSlot.editedContent && resSlot.editedContent.embeds);
+    assert.ok(resSlot.editedContent.components && resSlot.editedContent.components.length > 0);
+
+    // Lệnh /slot không nhập tiền -> Mở bảng chọn mức cược nhanh
+    const intSlotNoAmount = createMockInteraction(uid, gid, {});
+    await slotCmd.execute(intSlotNoAmount);
+    const resNoAmount = intSlotNoAmount.getResults();
+    assert.ok(resNoAmount.editedContent && resNoAmount.editedContent.embeds);
+    assert.strictEqual(resNoAmount.editedContent.components[0].components.length, 5);
 
     // Lệnh /baicao với cược 5 Coin
     const intBC = createMockInteraction(uid, gid, { amount: 5 });
@@ -386,12 +409,12 @@ async function runTests() {
     assert.strictEqual(featPanel.components.length, 1);
     assert.strictEqual(featPanel.components[0].components.length, 5); // 5 nút: Daily, Rank, Coin, Top, Chuyển Tiền
 
-    // Bảng Khu Trò Chơi XCCoin (/setgame) - 2 hàng nút (6 nút)
+    // Bảng Khu Trò Chơi XCCoin (/setgame) - 2 hàng nút (10 nút)
     const gamePanel = createGamePanel();
     assert.ok(gamePanel.embeds && gamePanel.components);
     assert.strictEqual(gamePanel.components.length, 2);
-    assert.strictEqual(gamePanel.components[0].components.length, 3); // Hàng 1: Slot, Bài Cào Bot, Bài Cào PvP
-    assert.strictEqual(gamePanel.components[1].components.length, 3); // Hàng 2: Xì Dách Bot, Xì Dách PvP, Tỷ Lệ Slot
+    assert.strictEqual(gamePanel.components[0].components.length, 5); // Hàng 1: Slot 100, 500, 1000, 5000, Cược Tùy Ý
+    assert.strictEqual(gamePanel.components[1].components.length, 5); // Hàng 2: Bài Cào Bot, Bài Cào PvP, Oẳn Tù Tì Bot, Oẳn Tù Tì PvP, Tỷ Lệ Slot
 
     // Bảng Chuyển Tiền XCCoin (/setcoinpay) - 3 nút
     const coinPayPanel = createCoinPayPanel();

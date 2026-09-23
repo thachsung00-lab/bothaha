@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const config = require('../config.json');
 
 // Danh sách biểu tượng Slot và trọng số xuất hiện
@@ -160,9 +160,74 @@ function createSlotRulesEmbed() {
     .setTimestamp();
 }
 
+/**
+ * Tạo hàng nút cược nhanh: 100, 500, 1000, 5000 và cược tùy ý
+ */
+function createSlotActionRows() {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_quick_100')
+      .setLabel('100')
+      .setEmoji('🪙')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_quick_500')
+      .setLabel('500')
+      .setEmoji('🪙')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_quick_1000')
+      .setLabel('1,000')
+      .setEmoji('🪙')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_quick_5000')
+      .setLabel('5,000')
+      .setEmoji('🪙')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_custom')
+      .setLabel('Cược Tùy Ý')
+      .setEmoji('🎰')
+      .setStyle(ButtonStyle.Success)
+  );
+
+  return row;
+}
+
+/**
+ * Tạo giao diện hiển thị chọn mức cược nhanh cho Slot Game
+ */
+function createSlotPromptPayload(user, currentBalance) {
+  const embed = new EmbedBuilder()
+    .setColor(config.colors.gold)
+    .setTitle('🎰 MÁY QUAY XÈNG SLOT MACHINE (NỔ HŨ x20)')
+    .setDescription(
+      `Chào <@${user.id}>! Thử vận may nhân số dư ví XCCoin của bạn:\n\n` +
+      `💳 **Số dư ví hiện tại:** **${currentBalance.toLocaleString()}** XCCoin\n\n` +
+      `⚡ **Chọn nhanh mức cược:**\n` +
+      `• Bấm một trong các nút cược nhanh: **100**, **500**, **1,000**, **5,000** XCCoin.\n` +
+      `• Hoặc bấm **🎰 Cược Tùy Ý** để nhập số tiền cược từ 1 đến 10,000 XCCoin.\n\n` +
+      `🌟 *Nổ hũ 7️⃣7️⃣7️⃣ x20 lần cược | 💎 x10 | 👑 x7 | 🔔 x5 | 🍇 x4 | 🍒 x3!*`
+    )
+    .setFooter({ text: '⏱️ Tự động đóng sau 30 giây' })
+    .setTimestamp();
+
+  return {
+    embeds: [embed],
+    components: [createSlotActionRows()]
+  };
+}
+
 module.exports = {
   SLOT_SYMBOLS,
   playSlot,
   createSlotResultEmbed,
-  createSlotRulesEmbed
+  createSlotRulesEmbed,
+  createSlotActionRows,
+  createSlotPromptPayload
 };

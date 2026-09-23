@@ -5,7 +5,7 @@ const levelHandler = require('../handlers/levelHandler');
 const { playBaiCao } = require('../utils/cardGame');
 const { createRoom, joinRoom, leaveRoom, cancelRoom, startRoomGame, getRoom } = require('../handlers/pvpGameHandler');
 const { createPvpLobbyPayload, createPvpResultPayload, createPvpCancelledPayload } = require('../utils/pvpPanelBuilder');
-const { playSlot, createSlotResultEmbed, createSlotRulesEmbed } = require('../utils/slotGame');
+const { playSlot, createSlotResultEmbed, createSlotRulesEmbed, createSlotActionRows, createSlotPromptPayload } = require('../utils/slotGame');
 const { createSoloRpsPromptPayload, executeSoloRps } = require('../handlers/rpsSoloHandler');
 const { createRpsRoom, joinRpsRoom, makeRpsChoice, cancelRpsRoom, getRpsRoom } = require('../handlers/rpsPvpHandler');
 const { createRpsPvpLobbyPayload, createRpsPvpBattlePayload, createRpsPvpResultPayload, createRpsPvpCancelledPayload } = require('../utils/rpsPvpPanelBuilder');
@@ -159,16 +159,16 @@ module.exports = {
         }
 
         // --- Nút trên Bảng Khu Trò Chơi XCCoin (/setgame) ---
-        else if (interaction.customId === 'btn_game_slot') {
-          // Mở Modal nhập tiền cược quay Slot
+        else if (interaction.customId === 'btn_game_slot' || interaction.customId === 'btn_game_slot_custom') {
+          // Mở Modal nhập tiền cược tùy ý quay Slot
           const modal = new ModalBuilder()
             .setCustomId('modal_bet_slot')
-            .setTitle('🎰 Quay Slot Machine (Tối đa 10,000 Coin)');
+            .setTitle('🎰 Quay Slot (1 - 10,000 Coin)');
 
           const amountInput = new TextInputBuilder()
             .setCustomId('input_slot_amount')
-            .setLabel('Số XCCoin Đặt Cược (Tối đa 10,000)')
-            .setPlaceholder('Ví dụ: 500')
+            .setLabel('Số XCCoin Đặt Cược (1 - 10,000)')
+            .setPlaceholder('Ví dụ: 250 hoặc 2000')
             .setMinLength(1)
             .setMaxLength(5)
             .setStyle(TextInputStyle.Short)
@@ -177,8 +177,13 @@ module.exports = {
           modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
           await interaction.showModal(modal);
         }
-        else if (interaction.customId === 'btn_game_slot_quick_500' || interaction.customId === 'btn_game_slot_quick_1000') {
-          const betAmount = interaction.customId === 'btn_game_slot_quick_500' ? 500 : 1000;
+        else if (interaction.customId.startsWith('btn_game_slot_quick_')) {
+          const rawAmount = interaction.customId.replace('btn_game_slot_quick_', '');
+          const betAmount = parseInt(rawAmount, 10);
+          if (isNaN(betAmount) || betAmount < 1 || betAmount > 10000) {
+            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ!');
+          }
+
           const user = db.getUser(userId, guildId);
           if ((user.xccoin || 0) < betAmount) {
             return replyEphemeralAutoDelete(
@@ -199,7 +204,7 @@ module.exports = {
           const updatedUser = db.getUser(userId, guildId);
           const embed = createSlotResultEmbed(interaction.user, result, updatedUser.xccoin || 0);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply({ embeds: [embed], components: [createSlotActionRows()] });
           setTimeout(() => interaction.deleteReply().catch(() => { }), 15000);
         }
         else if (interaction.customId === 'btn_game_slot_rules') {
@@ -542,7 +547,7 @@ module.exports = {
           const updatedUser = db.getUser(userId, guildId);
           const embed = createSlotResultEmbed(interaction.user, result, updatedUser.xccoin || 0);
 
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply({ embeds: [embed], components: [createSlotActionRows()] });
           setTimeout(() => interaction.deleteReply().catch(() => { }), 15000);
         }
 

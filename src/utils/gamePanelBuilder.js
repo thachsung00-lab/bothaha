@@ -12,6 +12,7 @@ function createGamePanel() {
     .setDescription(
       'Chào mừng bạn đến với Khu Trò Chơi! Thử vận may và nhân số dư XCCoin của bạn:\n\n' +
       '1️⃣ 🎰 **MÁY QUAY SLOT GAME (NỔ HŨ XCCOIN)**\n' +
+      '• Cược nhanh: **100**, **500**, **1,000**, **5,000** Coin hoặc bấm **Cược Tùy Ý** (1 - 10,000 Coin)!\n' +
       '• Quay trúng 3x 7️⃣7️⃣7️⃣ ➡️ **JACKPOT NỔ HŨ GẤP x20 LẦN CƯỢC**!\n' +
       '• 💎 Kim Cương x10 | 👑 Vương Miện x7 | 🔔 Chuông Vàng x5 | 🍇 Nho x4 | 🍒 Cherry x3!\n\n' +
       '2️⃣ 🃏 **BÀI CÀO 3 LÁ CÙNG BOT (BA CÀO)**\n' +
@@ -28,14 +29,41 @@ function createGamePanel() {
     .setFooter({ text: '🎲 Bấm vào các nút bên dưới để tham gia đặt cược ngay!' })
     .setTimestamp();
 
-  // Hàng nút 1: Slot Game & Bài Cào
+  // Hàng nút 1: Cược nhanh Slot Game & Cược Tùy Ý
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('btn_game_slot')
-      .setLabel('Quay Slot (x20)')
-      .setEmoji('🎰')
+      .setCustomId('btn_game_slot_quick_100')
+      .setLabel('Slot 100')
+      .setEmoji('🪙')
       .setStyle(ButtonStyle.Primary),
 
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_quick_500')
+      .setLabel('Slot 500')
+      .setEmoji('🪙')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_quick_1000')
+      .setLabel('Slot 1,000')
+      .setEmoji('🪙')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_quick_5000')
+      .setLabel('Slot 5,000')
+      .setEmoji('🪙')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_custom')
+      .setLabel('Cược Tùy Ý')
+      .setEmoji('🎰')
+      .setStyle(ButtonStyle.Success)
+  );
+
+  // Hàng nút 2: Bài Cào, Oẳn Tù Tì & Tiện ích
+  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_game_baicao')
       .setLabel('Bài Cào vs Bot')
@@ -44,22 +72,19 @@ function createGamePanel() {
 
     new ButtonBuilder()
       .setCustomId('btn_game_pvp_create')
-      .setLabel('Bài Cào PvP (Nhóm)')
+      .setLabel('Bài Cào PvP')
       .setEmoji('👥')
-      .setStyle(ButtonStyle.Success)
-  );
+      .setStyle(ButtonStyle.Success),
 
-  // Hàng nút 2: Oẳn Tù Tì & Tiện ích
-  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_game_rps_solo')
-      .setLabel('Oẳn Tù Tì vs Bot')
+      .setLabel('Oẳn Tù Tì Bot')
       .setEmoji('✊')
       .setStyle(ButtonStyle.Success),
 
     new ButtonBuilder()
       .setCustomId('btn_game_rps_pvp')
-      .setLabel('Oẳn Tù Tì PvP (1v1)')
+      .setLabel('Oẳn Tù Tì PvP')
       .setEmoji('⚔️')
       .setStyle(ButtonStyle.Primary),
 
