@@ -6,9 +6,9 @@ const { playBaiCao } = require('../utils/cardGame');
 const { createRoom, joinRoom, leaveRoom, cancelRoom, startRoomGame, getRoom } = require('../handlers/pvpGameHandler');
 const { createPvpLobbyPayload, createPvpResultPayload, createPvpCancelledPayload } = require('../utils/pvpPanelBuilder');
 const { playSlot, createSlotResultEmbed, createSlotRulesEmbed } = require('../utils/slotGame');
-const { handlePlayerHit, handlePlayerStand } = require('../handlers/xidachSoloHandler');
-const { joinXiDachRoom, leaveXiDachRoom, cancelXiDachRoom, startXiDachRoomGame, getXiDachRoom } = require('../handlers/xidachPvpHandler');
-const { createXiDachPvpLobbyPayload, createXiDachPvpResultPayload, createXiDachPvpCancelledPayload } = require('../utils/xidachPvpPanelBuilder');
+const { createSoloRpsPromptPayload, executeSoloRps } = require('../handlers/rpsSoloHandler');
+const { createRpsRoom, joinRpsRoom, makeRpsChoice, cancelRpsRoom, getRpsRoom } = require('../handlers/rpsPvpHandler');
+const { createRpsPvpLobbyPayload, createRpsPvpBattlePayload, createRpsPvpResultPayload, createRpsPvpCancelledPayload } = require('../utils/rpsPvpPanelBuilder');
 const { createSelectRecipientPayload, createTransferReceiptEmbed, getTradeOrNotifyChannel, refreshCoinPayPanel } = require('../utils/coinPayPanelBuilder');
 const config = require('../config.json');
 
@@ -163,13 +163,13 @@ module.exports = {
           // Mở Modal nhập tiền cược quay Slot
           const modal = new ModalBuilder()
             .setCustomId('modal_bet_slot')
-            .setTitle('🎰 Quay Slot Machine (100 - 10,000 Coin)');
+            .setTitle('🎰 Quay Slot Machine (Tối đa 10,000 Coin)');
 
           const amountInput = new TextInputBuilder()
             .setCustomId('input_slot_amount')
-            .setLabel('Số XCCoin Đặt Cược (100 đến 10,000)')
+            .setLabel('Số XCCoin Đặt Cược (Tối đa 10,000)')
             .setPlaceholder('Ví dụ: 500')
-            .setMinLength(3)
+            .setMinLength(1)
             .setMaxLength(5)
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
@@ -211,13 +211,13 @@ module.exports = {
         else if (interaction.customId === 'btn_game_baicao') {
           const modal = new ModalBuilder()
             .setCustomId('modal_bet_baicao')
-            .setTitle('🃏 Bài Cào 3 Lá (100 - 10,000 Coin)');
+            .setTitle('🃏 Bài Cào 3 Lá (Tối đa 10,000 Coin)');
 
           const amountInput = new TextInputBuilder()
             .setCustomId('input_baicao_amount')
-            .setLabel('Số XCCoin Đặt Cược (100 đến 10,000)')
+            .setLabel('Số XCCoin Đặt Cược (Tối đa 10,000)')
             .setPlaceholder('Ví dụ: 500')
-            .setMinLength(3)
+            .setMinLength(1)
             .setMaxLength(5)
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
@@ -232,9 +232,9 @@ module.exports = {
 
           const amountInput = new TextInputBuilder()
             .setCustomId('input_pvp_amount')
-            .setLabel('Số XCCoin Cược / Người (100 - 10,000)')
+            .setLabel('Số XCCoin Cược / Người (Tối đa 10,000)')
             .setPlaceholder('Ví dụ: 1000')
-            .setMinLength(3)
+            .setMinLength(1)
             .setMaxLength(5)
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
@@ -242,7 +242,7 @@ module.exports = {
           const maxPlayersInput = new TextInputBuilder()
             .setCustomId('input_pvp_max_players')
             .setLabel('Số Người Tối Đa (Từ 2 đến 8, mặc định: 6)')
-            .setPlaceholder('Ví dụ: 4')
+            .setPlaceholder('Ví dụ: 6')
             .setMinLength(1)
             .setMaxLength(1)
             .setStyle(TextInputStyle.Short)
@@ -255,16 +255,16 @@ module.exports = {
 
           await interaction.showModal(modal);
         }
-        else if (interaction.customId === 'btn_game_xidach') {
+        else if (interaction.customId === 'btn_game_rps_solo') {
           const modal = new ModalBuilder()
-            .setCustomId('modal_bet_xidach')
-            .setTitle('🎴 Kéo Xì Dách vs Bot (100 - 10,000 Coin)');
+            .setCustomId('modal_bet_rps')
+            .setTitle('✊ Oẳn Tù Tì vs Bot (Tối đa 10,000 Coin)');
 
           const amountInput = new TextInputBuilder()
-            .setCustomId('input_xidach_amount')
-            .setLabel('Số XCCoin Đặt Cược (100 đến 10,000)')
+            .setCustomId('input_rps_amount')
+            .setLabel('Số XCCoin Đặt Cược (Tối đa 10,000)')
             .setPlaceholder('Ví dụ: 500')
-            .setMinLength(3)
+            .setMinLength(1)
             .setMaxLength(5)
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
@@ -272,34 +272,21 @@ module.exports = {
           modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
           await interaction.showModal(modal);
         }
-        else if (interaction.customId === 'btn_game_xdpvp_create') {
+        else if (interaction.customId === 'btn_game_rps_pvp') {
           const modal = new ModalBuilder()
-            .setCustomId('modal_create_xdpvp')
-            .setTitle('👥 Mở Bàn Xì Dách Nhóm (PvP)');
+            .setCustomId('modal_create_rpspvp')
+            .setTitle('⚔️ Mở Kèo Thách Đấu Oẳn Tù Tì PvP');
 
           const amountInput = new TextInputBuilder()
-            .setCustomId('input_xdpvp_amount')
-            .setLabel('Số XCCoin Cược / Người (100 - 10,000)')
+            .setCustomId('input_rpspvp_amount')
+            .setLabel('Số XCCoin Cược / Người (Tối đa 10,000)')
             .setPlaceholder('Ví dụ: 1000')
-            .setMinLength(3)
+            .setMinLength(1)
             .setMaxLength(5)
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
 
-          const maxPlayersInput = new TextInputBuilder()
-            .setCustomId('input_xdpvp_max_players')
-            .setLabel('Số Người Tối Đa (Từ 2 đến 8, mặc định: 6)')
-            .setPlaceholder('Ví dụ: 4')
-            .setMinLength(1)
-            .setMaxLength(1)
-            .setStyle(TextInputStyle.Short)
-            .setRequired(false);
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(amountInput),
-            new ActionRowBuilder().addComponents(maxPlayersInput)
-          );
-
+          modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
           await interaction.showModal(modal);
         }
         else if (interaction.customId.startsWith('btn_pvp_join_')) {
@@ -381,125 +368,78 @@ module.exports = {
           }
         }
 
-        // --- Nút Xì Dách Solo với Bot (Hit & Stand) ---
-        else if (interaction.customId.startsWith('btn_xd_hit_')) {
-          const gameId = interaction.customId.replace('btn_xd_hit_', '');
-          const res = handlePlayerHit(gameId, userId);
-          if (!res) {
-            return replyEphemeralAutoDelete(interaction, '❌ Ván bài không tồn tại hoặc không phải lượt của bạn!');
-          }
-          if (res.success === false) {
-            return replyEphemeralAutoDelete(interaction, res.reason);
-          }
-
-          if (res.isInstant) {
-            // Đã kết thúc (Quắc hoặc Ngũ Linh) -> Xóa buttons và tự xóa sau 10 giây
-            await interaction.update({ embeds: [res.embed], components: [] });
-            setTimeout(() => {
-              if (interaction.message) {
-                interaction.message.delete().catch(() => { });
-              }
-            }, 10000);
-          } else {
-            // Tiếp tục chơi
-            await interaction.update({ embeds: [res.embed], components: [res.row] });
-          }
+        // --- Nút Oẳn Tù Tì Solo với Bot (Chọn Búa / Kéo / Bao) ---
+        else if (interaction.customId.startsWith('btn_rps_solo_')) {
+          // Format: btn_rps_solo_CHOICE_BETAMOUNT
+          const parts = interaction.customId.replace('btn_rps_solo_', '').split('_');
+          const choiceId = parts[0];
+          const betAmount = parseInt(parts[1], 10) || 1000;
+          await executeSoloRps(interaction, choiceId, betAmount);
         }
-        else if (interaction.customId.startsWith('btn_xd_stand_')) {
-          const gameId = interaction.customId.replace('btn_xd_stand_', '');
-          const res = handlePlayerStand(gameId, userId);
-          if (!res) {
-            return replyEphemeralAutoDelete(interaction, '❌ Ván bài không tồn tại hoặc không phải lượt của bạn!');
-          }
-          if (res.success === false) {
-            return replyEphemeralAutoDelete(interaction, res.reason);
+
+        // --- Nút Oẳn Tù Tì PvP Thách Đấu ---
+        else if (interaction.customId.startsWith('btn_rpspvp_join_')) {
+          const roomId = interaction.customId.replace('btn_rpspvp_join_', '');
+          const res = joinRpsRoom(roomId, interaction.user);
+          if (!res.success) {
+            return replyEphemeralAutoDelete(interaction, `❌ ${res.reason}`);
           }
 
-          // Dằn bài -> kết thúc ván, tự xóa sau 10 giây
-          await interaction.update({ embeds: [res.embed], components: [] });
-          setTimeout(() => {
-            if (interaction.message) {
-              interaction.message.delete().catch(() => { });
+          const battlePayload = createRpsPvpBattlePayload(res.room);
+          await interaction.update(battlePayload);
+
+          // Hẹn giờ 60s cho vòng ra đòn
+          res.room.timeout = setTimeout(async () => {
+            const cancelRes = cancelRpsRoom(roomId, null, 'Hết thời gian ra đòn (60s).');
+            if (cancelRes.success) {
+              const cancelPayload = createRpsPvpCancelledPayload(cancelRes.room, cancelRes.reason);
+              await interaction.message.edit(cancelPayload).catch(() => { });
+              setTimeout(() => interaction.message.delete().catch(() => { }), 10000);
             }
-          }, 10000);
+          }, 60000);
         }
-
-        // --- Nút Xì Dách PvP (Đấu nhóm) ---
-        else if (interaction.customId.startsWith('btn_xdpvp_join_')) {
-          const roomId = interaction.customId.replace('btn_xdpvp_join_', '');
-          const res = joinXiDachRoom(roomId, userId, interaction.user.username);
-          if (!res.success) {
-            return replyEphemeralAutoDelete(interaction, `❌ ${res.reason}`);
-          }
-
-          const payload = createXiDachPvpLobbyPayload(res.room);
-          await interaction.update(payload);
-        }
-        else if (interaction.customId.startsWith('btn_xdpvp_leave_')) {
-          const roomId = interaction.customId.replace('btn_xdpvp_leave_', '');
-          const res = leaveXiDachRoom(roomId, userId);
-          if (!res.success) {
-            return replyEphemeralAutoDelete(interaction, `❌ ${res.reason}`);
-          }
-
-          const payload = createXiDachPvpLobbyPayload(res.room);
-          await interaction.update(payload);
-        }
-        else if (interaction.customId.startsWith('btn_xdpvp_start_')) {
-          const roomId = interaction.customId.replace('btn_xdpvp_start_', '');
-          const room = getXiDachRoom(roomId);
-          if (!room) {
-            return replyEphemeralAutoDelete(interaction, '❌ Bàn chơi không tồn tại hoặc đã kết thúc!');
-          }
-          if (room.hostId !== userId) {
-            return replyEphemeralAutoDelete(interaction, '❌ Chỉ chủ bàn mới có thể bắt đầu ván bài!');
-          }
-          if (room.players.length < 2) {
-            return replyEphemeralAutoDelete(interaction, '❌ Cần ít nhất 2 người chơi để bắt đầu!');
-          }
-
-          const result = startXiDachRoomGame(roomId);
-          if (!result.success) {
-            return replyEphemeralAutoDelete(interaction, `❌ ${result.reason}`);
-          }
-
-          const payload = createXiDachPvpResultPayload(result);
-          await interaction.update(payload);
-
-          // Tự động xóa bàn chơi sau khi kết thúc ván 15 giây
-          setTimeout(async () => {
-            try {
-              if (interaction.message) {
-                await interaction.message.delete().catch(() => { });
-              }
-            } catch (e) { }
-          }, 15000);
-        }
-        else if (interaction.customId.startsWith('btn_xdpvp_cancel_')) {
-          const roomId = interaction.customId.replace('btn_xdpvp_cancel_', '');
-          const room = getXiDachRoom(roomId);
-          if (!room) {
-            return replyEphemeralAutoDelete(interaction, '❌ Bàn chơi không tồn tại hoặc đã kết thúc!');
-          }
-          const isHost = room.hostId === userId;
-          const isAdmin = interaction.memberPermissions && interaction.memberPermissions.has('Administrator');
-          if (!isHost && !isAdmin) {
-            return replyEphemeralAutoDelete(interaction, '❌ Chỉ chủ bàn (hoặc Quản trị viên) mới có quyền hủy bàn!');
-          }
-
-          const cancelRes = cancelXiDachRoom(roomId, `Chủ bàn ${interaction.user.username} đã hủy bàn.`);
-          if (cancelRes) {
-            const payload = createXiDachPvpCancelledPayload(cancelRes.room, cancelRes.reason);
+        else if (interaction.customId.startsWith('btn_rpspvp_cancel_')) {
+          const roomId = interaction.customId.replace('btn_rpspvp_cancel_', '');
+          const cancelRes = cancelRpsRoom(roomId, userId, `Chủ kèo ${interaction.user.username} đã hủy kèo.`);
+          if (cancelRes.success) {
+            const payload = createRpsPvpCancelledPayload(cancelRes.room, cancelRes.reason);
             await interaction.update(payload);
-            setTimeout(async () => {
-              try {
-                if (interaction.message) {
-                  await interaction.message.delete().catch(() => { });
-                }
-              } catch (e) { }
+            setTimeout(() => {
+              if (interaction.message) interaction.message.delete().catch(() => { });
             }, 10000);
           } else {
-            return replyEphemeralAutoDelete(interaction, '❌ Không thể hủy bàn chơi!');
+            return replyEphemeralAutoDelete(interaction, `❌ ${cancelRes.reason}`);
+          }
+        }
+        else if (interaction.customId.startsWith('btn_rpspvp_choice_')) {
+          // Format: btn_rpspvp_choice_CHOICE_ROOMID
+          const raw = interaction.customId.replace('btn_rpspvp_choice_', '');
+          const firstUnderscore = raw.indexOf('_');
+          const choiceId = raw.substring(0, firstUnderscore);
+          const roomId = raw.substring(firstUnderscore + 1);
+
+          const room = getRpsRoom(roomId);
+          if (!room) {
+            return replyEphemeralAutoDelete(interaction, '❌ Trận đấu không tồn tại hoặc đã kết thúc!');
+          }
+
+          const res = makeRpsChoice(roomId, userId, choiceId);
+          if (!res.success) {
+            return replyEphemeralAutoDelete(interaction, `❌ ${res.reason}`);
+          }
+
+          if (res.finished) {
+            // Cả hai đã ra đòn -> hiển thị kết quả
+            const resultPayload = createRpsPvpResultPayload(res.room, res.resultData);
+            await interaction.update(resultPayload);
+            setTimeout(() => {
+              if (interaction.message) interaction.message.delete().catch(() => { });
+            }, 15000);
+          } else {
+            // Mới có một người ra đòn -> cập nhật trạng thái bí mật
+            const battlePayload = createRpsPvpBattlePayload(res.room);
+            await interaction.update(battlePayload);
+            await replyEphemeralAutoDelete(interaction, `✅ Bạn đã ra đòn bí mật thành công! Đang chờ đối thủ lựa chọn...`, 5000);
           }
         }
 
@@ -578,8 +518,8 @@ module.exports = {
           const rawAmount = interaction.fields.getTextInputValue('input_slot_amount').trim();
           const amount = parseInt(rawAmount, 10);
 
-          if (isNaN(amount) || amount < 100 || amount > 10000) {
-            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **100** đến **10,000 XCCoin**.');
+          if (isNaN(amount) || amount < 1 || amount > 10000) {
+            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **1** đến **10,000 XCCoin**.');
           }
 
           const user = db.getUser(userId, guildId);
@@ -615,8 +555,8 @@ module.exports = {
           const rawAmount = interaction.fields.getTextInputValue('input_baicao_amount').trim();
           const amount = parseInt(rawAmount, 10);
 
-          if (isNaN(amount) || amount < 100 || amount > 10000) {
-            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **100** đến **10,000 XCCoin**.');
+          if (isNaN(amount) || amount < 1 || amount > 10000) {
+            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **1** đến **10,000 XCCoin**.');
           }
 
           const user = db.getUser(userId, guildId);
@@ -690,8 +630,8 @@ module.exports = {
           const amount = parseInt(rawAmount, 10);
           const maxPlayers = parseInt(rawMaxPlayers, 10) || 6;
 
-          if (isNaN(amount) || amount < 100 || amount > 10000) {
-            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **100** đến **10,000 XCCoin**.');
+          if (isNaN(amount) || amount < 1 || amount > 10000) {
+            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **1** đến **10,000 XCCoin**.');
           }
 
           if (isNaN(maxPlayers) || maxPlayers < 2 || maxPlayers > 8) {
@@ -741,13 +681,13 @@ module.exports = {
           }, 120000);
         }
 
-        // --- D. Modal Cược Xì Dách vs Bot ---
-        else if (interaction.customId === 'modal_bet_xidach') {
-          const rawAmount = interaction.fields.getTextInputValue('input_xidach_amount').trim();
+        // --- D. Modal Cược Oẳn Tù Tì vs Bot ---
+        else if (interaction.customId === 'modal_bet_rps') {
+          const rawAmount = interaction.fields.getTextInputValue('input_rps_amount').trim();
           const amount = parseInt(rawAmount, 10);
 
-          if (isNaN(amount) || amount < 100 || amount > 10000) {
-            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **100** đến **10,000 XCCoin**.');
+          if (isNaN(amount) || amount < 1 || amount > 10000) {
+            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **1** đến **10,000 XCCoin**.');
           }
 
           const user = db.getUser(userId, guildId);
@@ -758,87 +698,38 @@ module.exports = {
             );
           }
 
-          const res = startSoloGame({
-            userId,
-            username: interaction.user.username,
-            avatarUrl: interaction.user.displayAvatarURL({ dynamic: true }),
-            guildId,
-            amount
-          });
-
-          const payload = { embeds: [res.embed] };
-          if (res.row) {
-            payload.components = [res.row];
-          } else {
-            payload.components = [];
-          }
-
-          await interaction.reply(payload);
-
-          if (res.isInstant) {
-            setTimeout(() => {
-              interaction.deleteReply().catch(() => { });
-            }, 10000);
-          }
+          const promptPayload = createSoloRpsPromptPayload(userId, amount);
+          await interaction.reply(promptPayload);
         }
 
-        // --- E. Modal Mở Bàn Xì Dách PvP ---
-        else if (interaction.customId === 'modal_create_xdpvp') {
-          const rawAmount = interaction.fields.getTextInputValue('input_xdpvp_amount').trim();
-          const rawMaxPlayers = interaction.fields.getTextInputValue('input_xdpvp_max_players')?.trim() || '6';
-
+        // --- E. Modal Mở Kèo Thách Đấu Oẳn Tù Tì PvP ---
+        else if (interaction.customId === 'modal_create_rpspvp') {
+          const rawAmount = interaction.fields.getTextInputValue('input_rpspvp_amount').trim();
           const amount = parseInt(rawAmount, 10);
-          const maxPlayers = parseInt(rawMaxPlayers, 10) || 6;
 
-          if (isNaN(amount) || amount < 100 || amount > 10000) {
-            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **100** đến **10,000 XCCoin**.');
+          if (isNaN(amount) || amount < 1 || amount > 10000) {
+            return replyEphemeralAutoDelete(interaction, '❌ Mức cược không hợp lệ! Vui lòng nhập từ **1** đến **10,000 XCCoin**.');
           }
 
-          if (isNaN(maxPlayers) || maxPlayers < 2 || maxPlayers > 8) {
-            return replyEphemeralAutoDelete(interaction, '❌ Số người chơi tối đa không hợp lệ! Vui lòng nhập từ **2** đến **8** người.');
-          }
-
-          const roomRes = createXiDachRoom({
-            hostId: userId,
-            hostUsername: interaction.user.username,
-            guildId,
-            channelId: interaction.channelId,
-            amount,
-            maxPlayers
-          });
-
+          const roomRes = createRpsRoom(guildId, interaction.channelId, interaction.user, amount);
           if (!roomRes.success) {
             return replyEphemeralAutoDelete(interaction, `❌ ${roomRes.reason}`);
           }
 
           const room = roomRes.room;
-          const lobbyPayload = createXiDachPvpLobbyPayload(room);
+          const lobbyPayload = createRpsPvpLobbyPayload(room);
           const sentMsg = await interaction.reply(lobbyPayload);
-          room.messageId = sentMsg.id;
+          room.message = sentMsg;
 
-          room.timer = setTimeout(async () => {
-            try {
-              if (room.status !== 'WAITING') return;
-
-              if (room.players.length >= 2) {
-                const gameResult = startXiDachRoomGame(room.roomId);
-                if (gameResult.success) {
-                  const resultPayload = createXiDachPvpResultPayload(gameResult);
-                  await interaction.editReply(resultPayload).catch(() => { });
-                  setTimeout(() => {
-                    interaction.deleteReply().catch(() => { });
-                  }, 15000);
-                }
-              } else {
-                const cancelRes = cancelXiDachRoom(room.roomId, 'Hết thời gian chờ 2 phút mà không có ai tham gia.');
-                if (cancelRes) {
-                  interaction.deleteReply().catch(() => { });
-                }
-              }
-            } catch (err) {
-              console.error('[XiDachPvpTimer] Lỗi khi xử lý timer ván bài:', err);
+          // Hẹn giờ 60 giây nếu không ai nhận kèo thì hủy và hoàn tiền
+          room.timeout = setTimeout(async () => {
+            const cancelResult = cancelRpsRoom(room.id, null, 'Hết thời gian chờ đối thủ nhận kèo (60s).');
+            if (cancelResult.success) {
+              const cancelPayload = createRpsPvpCancelledPayload(room, cancelResult.reason);
+              await sentMsg.edit(cancelPayload).catch(() => { });
+              setTimeout(() => sentMsg.delete().catch(() => { }), 10000);
             }
-          }, 120000);
+          }, 60000);
         }
 
         // --- D. Modal Chuyển Tiền XCCoin (Coin Pay) ---

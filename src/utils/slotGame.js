@@ -168,7 +168,7 @@ function createSlotRulesEmbed() {
       '✨ **THƯỞNG AN ỦI KHI TRÚNG 2 BIỂU TƯỢNG GIỐNG NHAU:**\n' +
       '• Xuất hiện 2 ô giống nhau bất kỳ ➡️ **Ăn x1.5** tiền cược (Hoàn vốn + có lãi nhẹ)!\n\n' +
       '⭐ Mỗi lượt quay còn cộng thêm điểm **XP Tu Vi** giúp bạn nâng cấp cảnh giới tu tiên!\n' +
-      '🎲 *Cược tối thiểu: 100 XCCoin | Cược tối đa: 10,000 XCCoin/lần*'
+      '🎲 *Mức cược: Tự do (Tối đa 10,000 XCCoin/lần)*'
     )
     .setFooter({ text: 'Tự động đóng sau 1 phút' })
     .setTimestamp();

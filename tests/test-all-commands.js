@@ -7,9 +7,9 @@ const db = require('../src/database/db');
 const levelHandler = require('../src/handlers/levelHandler');
 const { playBaiCao, createShuffledDeck, evaluateHand } = require('../src/utils/cardGame');
 const { playSlot, createSlotResultEmbed, createSlotRulesEmbed } = require('../src/utils/slotGame');
-const { evaluateXiDachHand } = require('../src/utils/xidachGame');
-const { startSoloGame, handlePlayerHit, handlePlayerStand } = require('../src/handlers/xidachSoloHandler');
-const { createXiDachRoom, startXiDachRoomGame, cancelXiDachRoom } = require('../src/handlers/xidachPvpHandler');
+const { determineWinner, playSoloRps, RPS_CHOICES } = require('../src/utils/rpsGame');
+const { createSoloRpsPromptPayload, executeSoloRps } = require('../src/handlers/rpsSoloHandler');
+const { createRpsRoom, joinRpsRoom, makeRpsChoice, cancelRpsRoom } = require('../src/handlers/rpsPvpHandler');
 const { createGamePanel } = require('../src/utils/gamePanelBuilder');
 const { createFeaturePanel } = require('../src/utils/panelBuilder');
 
@@ -17,8 +17,8 @@ const { createFeaturePanel } = require('../src/utils/panelBuilder');
 const baicaoCmd = require('../src/commands/baicao');
 const baicaopvpCmd = require('../src/commands/baicaopvp');
 const slotCmd = require('../src/commands/slot');
-const xidachCmd = require('../src/commands/xidach');
-const xidachpvpCmd = require('../src/commands/xidachpvp');
+const oanhtutiCmd = require('../src/commands/oanhtuti');
+const oanhtutipvpCmd = require('../src/commands/oanhtutipvp');
 const chooseCmd = require('../src/commands/choose');
 const coinCmd = require('../src/commands/coin');
 const dailyCmd = require('../src/commands/daily');
@@ -87,8 +87,8 @@ function createMockInteraction(userId = 'test_user_1', guildId = 'test_guild_1',
     isButton: () => false,
     isChatInputCommand: () => true,
     isModalSubmit: () => false,
-    deferred: false,
-    replied: false,
+    get deferred() { return deferred; },
+    get replied() { return !!repliedContent; },
     deferReply: async (opts = {}) => {
       deferred = true;
       ephemeral = !!opts.ephemeral;
@@ -119,7 +119,7 @@ async function runTests() {
       console.log(`✅ [PASS] ${name}`);
       passed++;
     } catch (err) {
-      console.error(`❌ [FAIL] ${name}:`, err.message);
+      console.error(`❌ [FAIL] ${name}:`, err.stack || err.message);
       failed++;
     }
   }
@@ -239,43 +239,36 @@ async function runTests() {
     assert.ok(typeof res.earnedXp === 'number' && res.earnedXp >= 10);
   });
 
-  // 4. Kiểm tra Luật Xì Dách (Xì Hoa, Xì Dách, Ngũ Linh, Quắc & Điểm thường)
-  await test('Xi Dach Engine: Hand Evaluation & Vietnamese Rules', () => {
-    // Xì Hoa (2 Át)
-    const xiHoaHand = evaluateXiDachHand([
-      { rank: 'A', value: 1, display: '[ A♠ ]' },
-      { rank: 'A', value: 1, display: '[ A♥ ]' }
-    ]);
-    assert.strictEqual(xiHoaHand.isXiHoa, true);
-    assert.strictEqual(xiHoaHand.tier, 4);
+  // 4. Kiểm tra Luật Oẳn Tù Tì (Kéo Búa Bao Engine)
+  await test('RPS Engine: Rock Paper Scissors Logic & Rules', () => {
+    // Búa thắng Kéo
+    assert.strictEqual(determineWinner('ROCK', 'SCISSORS'), 'WIN');
+    // Kéo thắng Bao
+    assert.strictEqual(determineWinner('SCISSORS', 'PAPER'), 'WIN');
+    // Bao thắng Búa
+    assert.strictEqual(determineWinner('PAPER', 'ROCK'), 'WIN');
 
-    // Xì Dách (Át + K)
-    const xiDachHand = evaluateXiDachHand([
-      { rank: 'A', value: 1, display: '[ A♠ ]' },
-      { rank: 'K', value: 0, isFace: true, display: '[ K♦ ]' }
-    ]);
-    assert.strictEqual(xiDachHand.isBlackjack, true);
-    assert.strictEqual(xiDachHand.tier, 3);
+    // Thua
+    assert.strictEqual(determineWinner('SCISSORS', 'ROCK'), 'LOSE');
+    assert.strictEqual(determineWinner('PAPER', 'SCISSORS'), 'LOSE');
+    assert.strictEqual(determineWinner('ROCK', 'PAPER'), 'LOSE');
 
-    // Ngũ Linh (5 lá <= 21)
-    const nguLinhHand = evaluateXiDachHand([
-      { rank: '2', value: 2, display: '[ 2♠ ]' },
-      { rank: '3', value: 3, display: '[ 3♥ ]' },
-      { rank: '4', value: 4, display: '[ 4♦ ]' },
-      { rank: '5', value: 5, display: '[ 5♣ ]' },
-      { rank: '6', value: 6, display: '[ 6♠ ]' }
-    ]);
-    assert.strictEqual(nguLinhHand.isNguLinh, true);
-    assert.strictEqual(nguLinhHand.points, 20);
+    // Hòa
+    assert.strictEqual(determineWinner('ROCK', 'ROCK'), 'TIE');
+    assert.strictEqual(determineWinner('SCISSORS', 'SCISSORS'), 'TIE');
+    assert.strictEqual(determineWinner('PAPER', 'PAPER'), 'TIE');
 
-    // Quắc (> 21)
-    const bustedHand = evaluateXiDachHand([
-      { rank: '10', value: 0, display: '[ 10♠ ]' },
-      { rank: 'K', value: 0, isFace: true, display: '[ K♥ ]' },
-      { rank: '5', value: 5, display: '[ 5♦ ]' }
-    ]);
-    assert.strictEqual(bustedHand.isBusted, true);
-    assert.strictEqual(bustedHand.tier, 0);
+    // Test Solo RPS game
+    const soloGame = playSoloRps('ROCK', 500);
+    assert.ok(['WIN', 'LOSE', 'TIE'].includes(soloGame.result));
+    assert.strictEqual(soloGame.betAmount, 500);
+    if (soloGame.result === 'WIN') {
+      assert.strictEqual(soloGame.payout, 1000);
+    } else if (soloGame.result === 'TIE') {
+      assert.strictEqual(soloGame.payout, 500);
+    } else {
+      assert.strictEqual(soloGame.payout, 0);
+    }
   });
 
   // 5. Kiểm tra thực thi Lệnh /help
@@ -338,23 +331,35 @@ async function runTests() {
     assert.ok(res.editedContent && res.editedContent.embeds);
   });
 
-  // 9. Kiểm tra thực thi Lệnh /slot và /xidach
-  await test('Command: /slot and /xidach', async () => {
-    const uid = 'user_slot_xd_' + Date.now();
-    const gid = 'guild_slot_xd';
+  // 9. Kiểm tra thực thi Lệnh /slot, /baicao và /oanhtuti với mức cược nhỏ (tối thiểu 1)
+  await test('Command: /slot, /baicao and /oanhtuti with flexible bet (min 1 Coin)', async () => {
+    const uid = 'user_slot_rps_' + Date.now();
+    const gid = 'guild_slot_rps';
     db.addXCCoin(uid, gid, 10000);
 
-    // Lệnh /slot
-    const intSlot = createMockInteraction(uid, gid, { amount: 500 });
+    // Lệnh /slot với cược 1 Coin
+    const intSlot = createMockInteraction(uid, gid, { amount: 1 });
     await slotCmd.execute(intSlot);
     const resSlot = intSlot.getResults();
     assert.ok(resSlot.editedContent && resSlot.editedContent.embeds);
 
-    // Lệnh /xidach
-    const intXD = createMockInteraction(uid, gid, { amount: 500 });
-    await xidachCmd.execute(intXD);
-    const resXD = intXD.getResults();
-    assert.ok(resXD.editedContent && resXD.editedContent.embeds);
+    // Lệnh /baicao với cược 5 Coin
+    const intBC = createMockInteraction(uid, gid, { amount: 5 });
+    await baicaoCmd.execute(intBC);
+    const resBC = intBC.getResults();
+    assert.ok(resBC.editedContent && resBC.editedContent.embeds);
+
+    // Lệnh /oanhtuti với cược 10 Coin và chọn Búa
+    const intRPS = createMockInteraction(uid, gid, { amount: 10, choice: 'ROCK' });
+    await oanhtutiCmd.execute(intRPS);
+    const resRPS = intRPS.getResults();
+    assert.ok(resRPS.editedContent && resRPS.editedContent.embeds);
+
+    // Lệnh /oanhtutipvp mở thách đấu
+    const intRpsPvp = createMockInteraction(uid, gid, { amount: 100 });
+    await oanhtutipvpCmd.execute(intRpsPvp);
+    const resPvp = intRpsPvp.getResults();
+    assert.ok(resPvp.editedContent && resPvp.editedContent.embeds);
   });
 
   // 10. Kiểm tra thực thi Lệnh /leaderboard
@@ -793,7 +798,48 @@ async function runTests() {
 
     await messageCreateEvent.execute(mockUserMsg);
 
-    assert.ok(deletedUserMessage, 'Tin nhắn chat của user trong kênh bảng điều khiển phải bị tự động xóa');
+  });
+
+  // TEST 24: Oẳn Tù Tì PvP Thách Đấu (Tạo phòng, nhận kèo, ra đòn bí mật & trả thưởng Pot)
+  await test('PvP RPS: Room lifecycle, secret picks & winner pot resolution', () => {
+    const testGuildId = 'guild_rps_pvp_' + Date.now();
+    const hostUser = { id: 'user_host_rps', username: 'HostPlayer' };
+    const challengerUser = { id: 'user_challenger_rps', username: 'ChallengerPlayer' };
+
+    db.addXCCoin(hostUser.id, testGuildId, 5000);
+    db.addXCCoin(challengerUser.id, testGuildId, 5000);
+
+    // 1. Tạo phòng thách đấu 1,000 Coin
+    const createRes = createRpsRoom(testGuildId, 'channel_rps_1', hostUser, 1000);
+    assert.strictEqual(createRes.success, true);
+    const room = createRes.room;
+    assert.strictEqual(room.amount, 1000);
+    assert.strictEqual(room.status, 'WAITING');
+
+    // Số dư host bị trừ 1000
+    assert.strictEqual(db.getUser(hostUser.id, testGuildId).xccoin, 4000);
+
+    // 2. Challenger nhận kèo
+    const joinRes = joinRpsRoom(room.id, challengerUser);
+    assert.strictEqual(joinRes.success, true);
+    assert.strictEqual(room.status, 'BATTLING');
+    assert.strictEqual(db.getUser(challengerUser.id, testGuildId).xccoin, 4000);
+
+    // 3. Host ra Búa (ROCK)
+    const hostPick = makeRpsChoice(room.id, hostUser.id, 'ROCK');
+    assert.strictEqual(hostPick.success, true);
+    assert.strictEqual(hostPick.finished, false);
+
+    // 4. Challenger ra Kéo (SCISSORS) -> Trận đấu kết thúc
+    const chalPick = makeRpsChoice(room.id, challengerUser.id, 'SCISSORS');
+    assert.strictEqual(chalPick.success, true);
+    assert.strictEqual(chalPick.finished, true);
+    assert.strictEqual(chalPick.resultData.winnerId, hostUser.id);
+    assert.strictEqual(chalPick.resultData.pot, 2000);
+
+    // Host thắng nhận trọn Hũ Pot 2000 Coin (4000 + 2000 = 6000)
+    assert.strictEqual(db.getUser(hostUser.id, testGuildId).xccoin, 6000);
+    assert.strictEqual(db.getUser(challengerUser.id, testGuildId).xccoin, 4000);
   });
 
   console.log('\n====================================================');

@@ -8,8 +8,8 @@ module.exports = {
     .setDescription('👥 Tạo bàn chơi Bài Cào 3 lá cùng người khác trong Server (PvP / Đấu Nhóm)')
     .addIntegerOption(opt =>
       opt.setName('amount')
-        .setDescription('Mức cược XCCoin cho mỗi người chơi (100 - 10,000)')
-        .setMinValue(100)
+        .setDescription('Mức cược XCCoin cho mỗi người chơi (Tối đa 10,000)')
+        .setMinValue(1)
         .setMaxValue(10000)
         .setRequired(true)
     )

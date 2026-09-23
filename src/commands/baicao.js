@@ -6,11 +6,11 @@ const config = require('../config.json');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('baicao')
-    .setDescription('🃏 Chơi Bài Cào 3 lá cùng Bot (Mức cược từ 100 đến 10,000 XCCoin)')
+    .setDescription('🃏 Chơi Bài Cào 3 lá cùng Bot (Mức cược tối đa 10,000 XCCoin)')
     .addIntegerOption(opt =>
       opt.setName('amount')
-        .setDescription('Số XCCoin đặt cược (100 - 10,000)')
-        .setMinValue(100)
+        .setDescription('Số XCCoin đặt cược (Tối đa 10,000)')
+        .setMinValue(1)
         .setMaxValue(10000)
         .setRequired(true)
     ),

@@ -8,8 +8,8 @@ module.exports = {
     .setDescription('🎰 Quay Máy Quay Xèng Slot Machine (Nổ Hũ x20 XCCoin)')
     .addIntegerOption(opt =>
       opt.setName('amount')
-        .setDescription('Số XCCoin đặt cược (100 - 10,000)')
-        .setMinValue(100)
+        .setDescription('Số XCCoin đặt cược (Tối đa 10,000)')
+        .setMinValue(1)
         .setMaxValue(10000)
         .setRequired(true)
     ),

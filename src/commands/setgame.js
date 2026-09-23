@@ -5,7 +5,7 @@ const { createGamePanel } = require('../utils/gamePanelBuilder');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setgame')
-    .setDescription('🎰 (Admin) Thiết lập kênh Khu Trò Chơi XCCoin (Slot Game, Bài Cào, Xì Dách)')
+    .setDescription('🎰 (Admin) Thiết lập kênh Khu Trò Chơi XCCoin (Slot Game, Bài Cào, Oẳn Tù Tì)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption(option =>
       option.setName('channel')
@@ -58,7 +58,7 @@ module.exports = {
     });
 
     return interaction.editReply({
-      content: `✅ **Thiết lập thành công!** Đã gửi Bảng Sòng Bạc & Máy Quay Slot XCCoin vào kênh ${channel}.\nThành viên có thể quay **Slot Machine (Nổ hũ x20)**, chơi **Bài Cào (/baicao)** và **Kéo Xì Dách (/xidach)** ngay tại kênh này!`
+      content: `✅ **Thiết lập thành công!** Đã gửi Bảng Sòng Bạc & Khu Trò Chơi XCCoin vào kênh ${channel}.\nThành viên có thể quay **Slot Machine (Nổ hũ x20)**, chơi **Bài Cào (/baicao)** và **Oẳn Tù Tì (/oanhtuti)** ngay tại kênh này!`
     });
   }
 };

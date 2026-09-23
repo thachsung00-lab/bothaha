@@ -39,23 +39,23 @@ module.exports = {
         },
         {
           name: '🎰 /slot amount:[tiền cược]',
-          value: 'Quay Máy Quay Xèng Slot Machine (Cược 100 - 10,000 Coin). Nổ hũ 7️⃣7️⃣7️⃣ **x20 lần cược**, Kim Cương x10, Crown x7, Bell x5, trúng đôi x1.5!'
+          value: 'Quay Máy Quay Xèng Slot Machine (Cược tối đa 10,000 Coin). Nổ hũ 7️⃣7️⃣7️⃣ **x20 lần cược**, Kim Cương x10, Crown x7, Bell x5, trúng đôi x1.5!'
         },
         {
           name: '🃏 /baicao amount:[tiền cược]',
-          value: 'Chơi Bài Cào 3 lá cùng Bot (Mức cược: 100 đến 10,000 XCCoin/ván). Tỷ lệ thắng x2. Tự động dọn ván sau 10 giây.'
+          value: 'Chơi Bài Cào 3 lá cùng Bot (Mức cược tối đa 10,000 XCCoin/ván). Tỷ lệ thắng x2. Tự động dọn ván sau 10 giây.'
         },
         {
           name: '👥 /baicaopvp amount:[tiền cược] [target] [max_players]',
           value: 'Tạo bàn chơi Bài Cào 3 lá cùng người khác trong Server (2 - 8 người). Người thắng có bài cao nhất ẵm trọn toàn bộ Hũ Tiền Cược (Pot)!'
         },
         {
-          name: '🎴 /xidach amount:[tiền cược]',
-          value: 'Chơi Kéo Xì Dách (Blackjack 21 Điểm) cùng Bot. Người chơi có thể Rút bài (Hit) hoặc Dằn bài (Stand). Tự động dọn ván sau 10 giây.'
+          name: '✊ /oanhtuti amount:[tiền cược] [choice]',
+          value: 'Chơi Oẳn Tù Tì (Kéo Búa Bao) cùng Bot (Mức cược tối đa 10,000 Coin). Thắng nhận x2 cược, hòa hoàn tiền. Tự động dọn ván sau 10 giây.'
         },
         {
-          name: '👥 /xidachpvp amount:[tiền cược] [target] [max_players]',
-          value: 'Tạo phòng Kéo Xì Dách nhiều người trong Server (2 - 8 người). Xì Hoa > Xì Dách > Ngũ Linh > Điểm cao nhất ẵm trọn Pot!'
+          name: '⚔️ /oanhtutipvp amount:[tiền cược] [target]',
+          value: 'Mở kèo Thách Đấu Oẳn Tù Tì PvP 1 vs 1 cùng thành viên khác trong Server. Ra đòn bí mật, người thắng nhận trọn Hũ Pot!'
         },
         {
           name: '⚙️ /choose channel:[kênh] (Dành cho Admin)',
