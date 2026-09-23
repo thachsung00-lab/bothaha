@@ -1,0 +1,32 @@
+{
+  "currency": {
+    "name": "XCCoin",
+    "symbol": "🪙"
+  },
+  "daily": {
+    "baseXp": 100,
+    "streakBonus": 20,
+    "maxStreakBonus": 200,
+    "baseCoin": 200,
+    "streakCoinBonus": 50,
+    "cooldownHours": 24
+  },
+  "voice": {
+    "xpPerMinute": 10,
+    "xpPerHour": 600,
+    "coinsPerHour": 1000,
+    "ignoreDeafened": true,
+    "ignoreMuted": false,
+    "minMembersInChannel": 1
+  },
+  "colors": {
+    "primary": "#5865F2",
+    "success": "#57F287",
+    "gold": "#FEE75C",
+    "error": "#ED4245",
+    "voice": "#3BA55D"
+  },
+  "decay": {
+    "penaltyPercent": 10
+  }
+}
