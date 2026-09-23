@@ -43,14 +43,14 @@ function evaluateXiDachHand(cards) {
   }
 
   // 2. Tính điểm thông thường (A có thể là 1, 10 hoặc 11)
-  // Tính tổng điểm các lá không phải A trước
+  // Tính tổng điểm các lá không phải A trước (10, J, Q, K đều là 10 điểm)
   let nonAceSum = 0;
   for (const c of cards) {
     if (c.rank !== 'A') {
-      if (['J', 'Q', 'K'].includes(c.rank)) {
+      if (['10', 'J', 'Q', 'K'].includes(c.rank)) {
         nonAceSum += 10;
       } else {
-        nonAceSum += c.value;
+        nonAceSum += parseInt(c.rank, 10);
       }
     }
   }

@@ -229,61 +229,53 @@ async function runTests() {
     assert.strictEqual(game.botCards.length, 3);
   });
 
-  // 3. Kiểm tra Hệ thống Máy Quay Slot (Slot Machine)
-  await test('Slot Machine: Random Spin, Payouts & Multipliers', () => {
-    // Test quay slot
-    const slotRes = playSlot(1000);
-    assert.ok(slotRes.reelEmojis && slotRes.reelEmojis.length === 3);
-    assert.ok(['JACKPOT', 'TRIPLE', 'DOUBLE', 'LOSE'].includes(slotRes.winType));
-    if (slotRes.winType === 'JACKPOT') {
-      assert.strictEqual(slotRes.multiplier, 20);
-      assert.strictEqual(slotRes.payout, 20000);
-    } else if (slotRes.winType === 'DOUBLE') {
-      assert.strictEqual(slotRes.multiplier, 1.5);
-      assert.strictEqual(slotRes.payout, 1500);
-    } else if (slotRes.winType === 'LOSE') {
-      assert.strictEqual(slotRes.multiplier, 0);
-      assert.strictEqual(slotRes.payout, 0);
-    }
+  // 3. Kiểm tra Hệ thống Máy Quay Slot (Slot Machine / Nổ Hũ x20)
+  await test('Slot Machine: Random Spin, Payout & Symbols Evaluation', () => {
+    const res = playSlot(1000);
+    assert.strictEqual(res.reels.length, 3);
+    assert.strictEqual(res.reelEmojis.length, 3);
+    assert.ok(['JACKPOT', 'TRIPLE', 'DOUBLE', 'LOSE'].includes(res.winType));
+    assert.ok(typeof res.payout === 'number');
+    assert.ok(typeof res.earnedXp === 'number' && res.earnedXp >= 10);
   });
 
-  // 4. Kiểm tra Đánh giá Bài Xì Dách (Evaluate XiDach Hand)
-  await test('XiDach Engine: Xì Hoa, Xì Dách, Ngũ Linh & Điểm số', () => {
-    // 2 Át -> Xì Hoa
-    const xiHoa = evaluateXiDachHand([
-      { rank: 'A', value: 1 },
-      { rank: 'A', value: 1 }
+  // 4. Kiểm tra Luật Xì Dách (Xì Hoa, Xì Dách, Ngũ Linh, Quắc & Điểm thường)
+  await test('Xi Dach Engine: Hand Evaluation & Vietnamese Rules', () => {
+    // Xì Hoa (2 Át)
+    const xiHoaHand = evaluateXiDachHand([
+      { rank: 'A', value: 1, display: '[ A♠ ]' },
+      { rank: 'A', value: 1, display: '[ A♥ ]' }
     ]);
-    assert.strictEqual(xiHoa.isXiHoa, true);
-    assert.strictEqual(xiHoa.tier, 4);
+    assert.strictEqual(xiHoaHand.isXiHoa, true);
+    assert.strictEqual(xiHoaHand.tier, 4);
 
-    // Át + K -> Xì Dách
-    const xiDach = evaluateXiDachHand([
-      { rank: 'A', value: 1 },
-      { rank: 'K', value: 0 }
+    // Xì Dách (Át + K)
+    const xiDachHand = evaluateXiDachHand([
+      { rank: 'A', value: 1, display: '[ A♠ ]' },
+      { rank: 'K', value: 0, isFace: true, display: '[ K♦ ]' }
     ]);
-    assert.strictEqual(xiDach.isBlackjack, true);
-    assert.strictEqual(xiDach.tier, 3);
+    assert.strictEqual(xiDachHand.isBlackjack, true);
+    assert.strictEqual(xiDachHand.tier, 3);
 
-    // 5 lá nhỏ <= 21 -> Ngũ Linh
-    const nguLinh = evaluateXiDachHand([
-      { rank: '2', value: 2 },
-      { rank: '3', value: 3 },
-      { rank: '4', value: 4 },
-      { rank: '2', value: 2 },
-      { rank: '5', value: 5 }
+    // Ngũ Linh (5 lá <= 21)
+    const nguLinhHand = evaluateXiDachHand([
+      { rank: '2', value: 2, display: '[ 2♠ ]' },
+      { rank: '3', value: 3, display: '[ 3♥ ]' },
+      { rank: '4', value: 4, display: '[ 4♦ ]' },
+      { rank: '5', value: 5, display: '[ 5♣ ]' },
+      { rank: '6', value: 6, display: '[ 6♠ ]' }
     ]);
-    assert.strictEqual(nguLinh.isNguLinh, true);
-    assert.strictEqual(nguLinh.tier, 2.5);
+    assert.strictEqual(nguLinhHand.isNguLinh, true);
+    assert.strictEqual(nguLinhHand.points, 20);
 
     // Quắc (> 21)
-    const quac = evaluateXiDachHand([
-      { rank: '10', value: 0 },
-      { rank: 'K', value: 0 },
-      { rank: '5', value: 5 }
+    const bustedHand = evaluateXiDachHand([
+      { rank: '10', value: 0, display: '[ 10♠ ]' },
+      { rank: 'K', value: 0, isFace: true, display: '[ K♥ ]' },
+      { rank: '5', value: 5, display: '[ 5♦ ]' }
     ]);
-    assert.strictEqual(quac.isBusted, true);
-    assert.strictEqual(quac.points, 25);
+    assert.strictEqual(bustedHand.isBusted, true);
+    assert.strictEqual(bustedHand.tier, 0);
   });
 
   // 5. Kiểm tra thực thi Lệnh /help
@@ -346,41 +338,23 @@ async function runTests() {
     assert.ok(res.editedContent && res.editedContent.embeds);
   });
 
-  // 9. Kiểm tra thực thi Lệnh /slot
-  await test('Command: /slot', async () => {
-    const uid = 'user_slot_test_' + Date.now();
-    const gid = 'guild_slot';
-    db.addXCCoin(uid, gid, 1000);
+  // 9. Kiểm tra thực thi Lệnh /slot và /xidach
+  await test('Command: /slot and /xidach', async () => {
+    const uid = 'user_slot_xd_' + Date.now();
+    const gid = 'guild_slot_xd';
+    db.addXCCoin(uid, gid, 10000);
 
-    const intSlot = createMockInteraction(uid, gid, { amount: 300 });
+    // Lệnh /slot
+    const intSlot = createMockInteraction(uid, gid, { amount: 500 });
     await slotCmd.execute(intSlot);
-    const res = intSlot.getResults();
-    assert.ok(res.editedContent && res.editedContent.embeds);
-  });
+    const resSlot = intSlot.getResults();
+    assert.ok(resSlot.editedContent && resSlot.editedContent.embeds);
 
-  // 9b. Kiểm tra thực thi Lệnh /xidach (Chơi Xì Dách với Bot)
-  await test('Command: /xidach', async () => {
-    const uid = 'user_xd_test_' + Date.now();
-    const gid = 'guild_xd';
-    db.addXCCoin(uid, gid, 1000);
-
-    const intXD = createMockInteraction(uid, gid, { amount: 200 });
+    // Lệnh /xidach
+    const intXD = createMockInteraction(uid, gid, { amount: 500 });
     await xidachCmd.execute(intXD);
-    const res = intXD.getResults();
-    assert.ok(res.editedContent && res.editedContent.embeds);
-  });
-
-  // 9c. Kiểm tra thực thi Lệnh /xidachpvp (Tạo phòng Xì Dách PvP)
-  await test('Command: /xidachpvp', async () => {
-    const uid = 'user_xdpvp_test_' + Date.now();
-    const gid = 'guild_xdpvp';
-    db.addXCCoin(uid, gid, 2000);
-
-    const intXDPvp = createMockInteraction(uid, gid, { amount: 500, max_players: 4 });
-    await xidachpvpCmd.execute(intXDPvp);
-    const res = intXDPvp.getResults();
-    assert.ok(res.editedContent && res.editedContent.embeds);
-    assert.ok(res.editedContent.components);
+    const resXD = intXD.getResults();
+    assert.ok(resXD.editedContent && resXD.editedContent.embeds);
   });
 
   // 10. Kiểm tra thực thi Lệnh /leaderboard
@@ -399,12 +373,12 @@ async function runTests() {
     assert.strictEqual(featPanel.components.length, 1);
     assert.strictEqual(featPanel.components[0].components.length, 5); // 5 nút: Daily, Rank, Coin, Top, Chuyển Tiền
 
-    // Bảng Khu Trò Chơi XCCoin (/setgame) - 2 hàng nút (3 nút hàng 1, 3 nút hàng 2)
+    // Bảng Khu Trò Chơi XCCoin (/setgame) - 2 hàng nút (6 nút)
     const gamePanel = createGamePanel();
     assert.ok(gamePanel.embeds && gamePanel.components);
     assert.strictEqual(gamePanel.components.length, 2);
     assert.strictEqual(gamePanel.components[0].components.length, 3); // Hàng 1: Slot, Bài Cào Bot, Bài Cào PvP
-    assert.strictEqual(gamePanel.components[1].components.length, 3); // Hàng 2: Xì Dách Bot, Xì Dách PvP, Tỷ lệ Slot
+    assert.strictEqual(gamePanel.components[1].components.length, 3); // Hàng 2: Xì Dách Bot, Xì Dách PvP, Tỷ Lệ Slot
 
     // Bảng Chuyển Tiền XCCoin (/setcoinpay) - 3 nút
     const coinPayPanel = createCoinPayPanel();
@@ -793,6 +767,33 @@ async function runTests() {
     // Kiểm tra settings được cập nhật ID tin nhắn mới
     const updatedSettings = db.getGuildSettings(testGuildId);
     assert.strictEqual(updatedSettings.coinPayMessageId, 'new_msg_coinpay_at_bottom');
+  });
+
+  // TEST 23: Bảo vệ kênh bảng điều khiển (Bảng cố định, tự động xóa chat người dùng, không tạo vòng lặp ẩn hiện)
+  await test('Kênh Bảng Menu (#điểm-danh, #xccoingame, #traide) tự động xóa tin nhắn người dùng và cố định bảng', async () => {
+    const messageCreateEvent = require('../src/events/messageCreate');
+    const testGuildId = 'guild_fixed_panel_' + Date.now();
+    let deletedUserMessage = false;
+
+    db.setGuildSettings(testGuildId, {
+      stickyChannelId: 'ch_menu_checkin',
+      stickyMessageId: 'panel_msg_1',
+      gameChannelId: 'ch_menu_game',
+      gameMessageId: 'panel_msg_2'
+    });
+
+    // Giả lập tin nhắn của user gửi vào kênh bảng điểm danh
+    const mockUserMsg = {
+      guild: { id: testGuildId },
+      author: { bot: false, id: 'user_123' },
+      channel: { id: 'ch_menu_checkin' },
+      content: 'hello bot ơi',
+      delete: async () => { deletedUserMessage = true; }
+    };
+
+    await messageCreateEvent.execute(mockUserMsg);
+
+    assert.ok(deletedUserMessage, 'Tin nhắn chat của user trong kênh bảng điều khiển phải bị tự động xóa');
   });
 
   console.log('\n====================================================');

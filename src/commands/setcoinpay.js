@@ -28,16 +28,24 @@ module.exports = {
 
     const currentSettings = db.getGuildSettings(guildId);
 
-    // Xóa bảng cũ ở kênh trước nếu có
-    if (currentSettings.coinPayChannelId && currentSettings.coinPayMessageId) {
-      try {
+    // Xóa tất cả các bảng coin pay cũ hoặc trùng lặp trong kênh mục tiêu
+    try {
+      const recentMessages = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+      if (recentMessages) {
+        for (const [, msg] of recentMessages) {
+          if (msg.author.id === interaction.client.user.id && msg.embeds.some(e => e.title && e.title.includes('CỔNG CHUYỂN TIỀN XCCOIN'))) {
+            await msg.delete().catch(() => {});
+          }
+        }
+      }
+      if (currentSettings && currentSettings.coinPayChannelId && currentSettings.coinPayMessageId && currentSettings.coinPayChannelId !== channel.id) {
         const oldChannel = interaction.guild.channels.cache.get(currentSettings.coinPayChannelId);
         if (oldChannel) {
           const oldMsg = await oldChannel.messages.fetch(currentSettings.coinPayMessageId).catch(() => null);
           if (oldMsg) await oldMsg.delete().catch(() => {});
         }
-      } catch (e) {}
-    }
+      }
+    } catch (e) {}
 
     // Gửi Bảng Coin Pay mới
     const panelPayload = createCoinPayPanel();

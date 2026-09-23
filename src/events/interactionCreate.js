@@ -209,7 +209,6 @@ module.exports = {
           setTimeout(() => interaction.deleteReply().catch(() => { }), 60000);
         }
         else if (interaction.customId === 'btn_game_baicao') {
-          // Mở Modal cược Bài Cào vs Bot
           const modal = new ModalBuilder()
             .setCustomId('modal_bet_baicao')
             .setTitle('🃏 Bài Cào 3 Lá (100 - 10,000 Coin)');
@@ -227,7 +226,6 @@ module.exports = {
           await interaction.showModal(modal);
         }
         else if (interaction.customId === 'btn_game_pvp_create') {
-          // Mở Modal tạo phòng Bài Cào PvP
           const modal = new ModalBuilder()
             .setCustomId('modal_create_pvp')
             .setTitle('👥 Mở Bàn Cào Nhóm (PvP)');
@@ -258,7 +256,6 @@ module.exports = {
           await interaction.showModal(modal);
         }
         else if (interaction.customId === 'btn_game_xidach') {
-          // Mở Modal cược Xì Dách vs Bot
           const modal = new ModalBuilder()
             .setCustomId('modal_bet_xidach')
             .setTitle('🎴 Kéo Xì Dách vs Bot (100 - 10,000 Coin)');
@@ -276,7 +273,6 @@ module.exports = {
           await interaction.showModal(modal);
         }
         else if (interaction.customId === 'btn_game_xdpvp_create') {
-          // Mở Modal tạo phòng Xì Dách PvP
           const modal = new ModalBuilder()
             .setCustomId('modal_create_xdpvp')
             .setTitle('👥 Mở Bàn Xì Dách Nhóm (PvP)');
@@ -631,7 +627,6 @@ module.exports = {
             );
           }
 
-          // Chơi ván bài cào
           const game = playBaiCao();
           let resultTitle = '';
           let resultColor = config.colors.primary;
@@ -680,11 +675,10 @@ module.exports = {
               { name: '⭐ Tu vi (XP)', value: `+**${earnedXp.toLocaleString()}** XP`, inline: true },
               { name: '💳 Số dư ví mới', value: `**${(updatedUser.xccoin || 0).toLocaleString()}** XCCoin`, inline: true }
             )
-            .setFooter({ text: '⏱️ Ván bài sẽ tự động xóa sau 10 giây để giữ sạch kênh.' })
+            .setFooter({ text: 'Tỷ lệ thắng ngẫu nhiên chuẩn bài 52 lá • Tự động xóa ván sau 10 giây' })
             .setTimestamp();
 
           await interaction.editReply({ embeds: [embed] });
-          // Tự động xóa ván cũ sau 10 giây khi đấu với máy
           setTimeout(() => interaction.deleteReply().catch(() => { }), 10000);
         }
 
@@ -704,8 +698,6 @@ module.exports = {
             return replyEphemeralAutoDelete(interaction, '❌ Số người chơi tối đa không hợp lệ! Vui lòng nhập từ **2** đến **8** người.');
           }
 
-          await interaction.deferReply();
-
           const roomRes = createRoom({
             hostId: userId,
             hostUsername: interaction.user.username,
@@ -721,10 +713,9 @@ module.exports = {
 
           const room = roomRes.room;
           const lobbyPayload = createPvpLobbyPayload(room);
-          const sentMsg = await interaction.editReply(lobbyPayload);
+          const sentMsg = await interaction.reply(lobbyPayload);
           room.messageId = sentMsg.id;
 
-          // Hẹn giờ tự động 2 phút
           room.timer = setTimeout(async () => {
             try {
               if (room.status !== 'WAITING') return;
@@ -733,15 +724,15 @@ module.exports = {
                 const gameResult = startRoomGame(room.roomId);
                 if (gameResult.success) {
                   const resultPayload = createPvpResultPayload(gameResult);
-                  await sentMsg.edit(resultPayload).catch(() => { });
+                  await interaction.editReply(resultPayload).catch(() => { });
                   setTimeout(() => {
-                    interaction.deleteReply().catch(() => sentMsg.delete().catch(() => { }));
+                    interaction.deleteReply().catch(() => { });
                   }, 15000);
                 }
               } else {
                 const cancelRes = cancelRoom(room.roomId, 'Hết thời gian chờ 2 phút mà không có thêm người chơi tham gia.');
                 if (cancelRes) {
-                  interaction.deleteReply().catch(() => sentMsg.delete().catch(() => { }));
+                  interaction.deleteReply().catch(() => { });
                 }
               }
             } catch (err) {
@@ -752,10 +743,6 @@ module.exports = {
 
         // --- D. Modal Cược Xì Dách vs Bot ---
         else if (interaction.customId === 'modal_bet_xidach') {
-          if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply();
-          }
-
           const rawAmount = interaction.fields.getTextInputValue('input_xidach_amount').trim();
           const amount = parseInt(rawAmount, 10);
 
@@ -767,7 +754,7 @@ module.exports = {
           if ((user.xccoin || 0) < amount) {
             return replyEphemeralAutoDelete(
               interaction,
-              `❌ Số dư của bạn không đủ! Bạn hiện có **${(user.xccoin || 0).toLocaleString()} XCCoin**.`
+              `❌ Số dư của bạn không đủ! Bạn hiện có **${(user.xccoin || 0).toLocaleString()} XCCoin**, cần **${amount.toLocaleString()} XCCoin**.`
             );
           }
 
@@ -786,9 +773,8 @@ module.exports = {
             payload.components = [];
           }
 
-          await interaction.editReply(payload);
+          await interaction.reply(payload);
 
-          // Nếu kết thúc ngay lập tức (Xì Hoa / Xì Dách): tự xóa sau 10 giây
           if (res.isInstant) {
             setTimeout(() => {
               interaction.deleteReply().catch(() => { });
@@ -812,8 +798,6 @@ module.exports = {
             return replyEphemeralAutoDelete(interaction, '❌ Số người chơi tối đa không hợp lệ! Vui lòng nhập từ **2** đến **8** người.');
           }
 
-          await interaction.deferReply();
-
           const roomRes = createXiDachRoom({
             hostId: userId,
             hostUsername: interaction.user.username,
@@ -829,10 +813,9 @@ module.exports = {
 
           const room = roomRes.room;
           const lobbyPayload = createXiDachPvpLobbyPayload(room);
-          const sentMsg = await interaction.editReply(lobbyPayload);
+          const sentMsg = await interaction.reply(lobbyPayload);
           room.messageId = sentMsg.id;
 
-          // Hẹn giờ tự động 2 phút
           room.timer = setTimeout(async () => {
             try {
               if (room.status !== 'WAITING') return;
@@ -841,24 +824,24 @@ module.exports = {
                 const gameResult = startXiDachRoomGame(room.roomId);
                 if (gameResult.success) {
                   const resultPayload = createXiDachPvpResultPayload(gameResult);
-                  await sentMsg.edit(resultPayload).catch(() => { });
+                  await interaction.editReply(resultPayload).catch(() => { });
                   setTimeout(() => {
-                    interaction.deleteReply().catch(() => sentMsg.delete().catch(() => { }));
+                    interaction.deleteReply().catch(() => { });
                   }, 15000);
                 }
               } else {
                 const cancelRes = cancelXiDachRoom(room.roomId, 'Hết thời gian chờ 2 phút mà không có ai tham gia.');
                 if (cancelRes) {
-                  interaction.deleteReply().catch(() => sentMsg.delete().catch(() => { }));
+                  interaction.deleteReply().catch(() => { });
                 }
               }
             } catch (err) {
-              console.error('[XiDachPvpModalTimer] Lỗi khi xử lý timer ván bài:', err);
+              console.error('[XiDachPvpTimer] Lỗi khi xử lý timer ván bài:', err);
             }
           }, 120000);
         }
 
-        // --- F. Modal Chuyển Tiền XCCoin (Coin Pay) ---
+        // --- D. Modal Chuyển Tiền XCCoin (Coin Pay) ---
         else if (interaction.customId.startsWith('modal_coinpay_')) {
           const targetId = interaction.customId.replace('modal_coinpay_', '');
           const userId = interaction.user.id;

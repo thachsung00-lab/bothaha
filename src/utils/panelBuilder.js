@@ -16,7 +16,7 @@ function createFeaturePanel() {
       '🏆 **Bảng Xếp Hạng** — Xem Top thành viên hoạt động năng nổ nhất Server.\n' +
       '💸 **Chuyển Tiền (Coin Pay)** — Chuyển XCCoin cho bạn bè qua giao diện chọn nút bấm.'
     )
-    .setFooter({ text: '📌 Bảng tính năng này luôn tự động hiển thị ở cuối mỗi tin nhắn trong kênh' })
+    .setFooter({ text: '⚡ Bảng Điều Khiển Tương Tác Tự Động • Nhấn nút để thao tác' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(

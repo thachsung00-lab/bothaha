@@ -2,43 +2,40 @@ const { Events } = require('discord.js');
 const db = require('../database/db');
 const { createFeaturePanel } = require('../utils/panelBuilder');
 const { createGamePanel } = require('../utils/gamePanelBuilder');
+const { createCoinPayPanel } = require('../utils/coinPayPanelBuilder');
 
-const { refreshCoinPayPanel } = require('../utils/coinPayPanelBuilder');
-
-// Map lưu debounce cho từng kênh để tránh spam khi nhiều người chat cùng lúc
-const stickyTimeouts = new Map();
-const gameTimeouts = new Map();
-
+// Không dùng stickyTimeouts để tránh tình trạng bảng bị ẩn hiện/làm mới liên tục
 module.exports = {
   name: Events.MessageCreate,
   async execute(message) {
     if (!message.guild) return;
 
+    // BỎ QUA TẤT CẢ TIN NHẮN CỦA BOT ĐỂ TRÁNH VÒNG LẶP
+    if (message.author.bot) return;
+
     const guildId = message.guild.id;
     const settings = db.getGuildSettings(guildId);
+    const contentLower = message.content.trim().toLowerCase();
 
-    // Không kích hoạt khi chính tin nhắn là bảng điều khiển (tránh vòng lặp vô tận)
-    if (settings) {
-      if (
-        message.id === settings.stickyMessageId ||
-        message.id === settings.gameMessageId ||
-        message.id === settings.coinPayMessageId
-      ) {
-        return;
-      }
-    }
-
-    // Các lệnh Admin chỉ xử lý khi người gửi không phải là Bot
-    if (!message.author.bot) {
-      const contentLower = message.content.trim().toLowerCase();
+    // ==========================================
+    // 1. Xử lý các lệnh dạng văn bản (Text Commands) của Admin
+    // ==========================================
     if (contentLower.startsWith('/setgame') || contentLower.startsWith('!setgame')) {
       if (message.member && message.member.permissions.has('ManageGuild')) {
         try {
-          const currentSettings = db.getGuildSettings(guildId);
-          if (currentSettings.gameChannelId && currentSettings.gameMessageId) {
-            const oldChan = message.guild.channels.cache.get(currentSettings.gameChannelId);
+          // Xóa tất cả các bảng game cũ hoặc trùng lặp trong kênh
+          const recentMessages = await message.channel.messages.fetch({ limit: 20 }).catch(() => null);
+          if (recentMessages) {
+            for (const [, msg] of recentMessages) {
+              if (msg.author.id === message.client.user.id && msg.embeds.some(e => e.title && e.title.includes('SÒNG BẠC & KHU TRÒ CHƠI'))) {
+                await msg.delete().catch(() => {});
+              }
+            }
+          }
+          if (settings && settings.gameChannelId && settings.gameMessageId && settings.gameChannelId !== message.channel.id) {
+            const oldChan = message.guild.channels.cache.get(settings.gameChannelId);
             if (oldChan) {
-              const oldMsg = await oldChan.messages.fetch(currentSettings.gameMessageId).catch(() => null);
+              const oldMsg = await oldChan.messages.fetch(settings.gameMessageId).catch(() => null);
               if (oldMsg) await oldMsg.delete().catch(() => {});
             }
           }
@@ -56,15 +53,22 @@ module.exports = {
       }
     }
 
-    // Hỗ trợ Admin gõ lệnh dạng văn bản (/choose hoặc !choose)
     if (contentLower.startsWith('/choose') || contentLower.startsWith('!choose')) {
       if (message.member && (message.member.permissions.has('ManageGuild') || message.member.permissions.has('Administrator'))) {
         try {
-          const currentSettings = db.getGuildSettings(guildId);
-          if (currentSettings.stickyChannelId && currentSettings.stickyMessageId) {
-            const oldChan = message.guild.channels.cache.get(currentSettings.stickyChannelId);
+          // Xóa tất cả các bảng tiện ích cũ hoặc trùng lặp trong kênh
+          const recentMessages = await message.channel.messages.fetch({ limit: 20 }).catch(() => null);
+          if (recentMessages) {
+            for (const [, msg] of recentMessages) {
+              if (msg.author.id === message.client.user.id && msg.embeds.some(e => e.title && e.title.includes('BẢNG ĐIỀU KHIỂN & ĐIỂM DANH'))) {
+                await msg.delete().catch(() => {});
+              }
+            }
+          }
+          if (settings && settings.stickyChannelId && settings.stickyMessageId && settings.stickyChannelId !== message.channel.id) {
+            const oldChan = message.guild.channels.cache.get(settings.stickyChannelId);
             if (oldChan) {
-              const oldMsg = await oldChan.messages.fetch(currentSettings.stickyMessageId).catch(() => null);
+              const oldMsg = await oldChan.messages.fetch(settings.stickyMessageId).catch(() => null);
               if (oldMsg) await oldMsg.delete().catch(() => {});
             }
           }
@@ -72,7 +76,9 @@ module.exports = {
           const newMsg = await message.channel.send(panelPayload);
           db.setGuildSettings(guildId, {
             stickyChannelId: message.channel.id,
-            stickyMessageId: newMsg.id
+            stickyMessageId: newMsg.id,
+            checkinChannelId: message.channel.id,
+            panelMessageId: newMsg.id
           });
           await message.delete().catch(() => {});
           return;
@@ -82,19 +88,25 @@ module.exports = {
       }
     }
 
-    // Hỗ trợ Admin gõ lệnh dạng văn bản (/setcoinpay hoặc !setcoinpay)
     if (contentLower.startsWith('/setcoinpay') || contentLower.startsWith('!setcoinpay')) {
       if (message.member && (message.member.permissions.has('ManageGuild') || message.member.permissions.has('Administrator'))) {
         try {
-          const currentSettings = db.getGuildSettings(guildId);
-          if (currentSettings.coinPayChannelId && currentSettings.coinPayMessageId) {
-            const oldChan = message.guild.channels.cache.get(currentSettings.coinPayChannelId);
+          // Xóa tất cả các bảng coin pay cũ hoặc trùng lặp trong kênh
+          const recentMessages = await message.channel.messages.fetch({ limit: 20 }).catch(() => null);
+          if (recentMessages) {
+            for (const [, msg] of recentMessages) {
+              if (msg.author.id === message.client.user.id && msg.embeds.some(e => e.title && e.title.includes('CỔNG CHUYỂN TIỀN XCCOIN'))) {
+                await msg.delete().catch(() => {});
+              }
+            }
+          }
+          if (settings && settings.coinPayChannelId && settings.coinPayMessageId && settings.coinPayChannelId !== message.channel.id) {
+            const oldChan = message.guild.channels.cache.get(settings.coinPayChannelId);
             if (oldChan) {
-              const oldMsg = await oldChan.messages.fetch(currentSettings.coinPayMessageId).catch(() => null);
+              const oldMsg = await oldChan.messages.fetch(settings.coinPayMessageId).catch(() => null);
               if (oldMsg) await oldMsg.delete().catch(() => {});
             }
           }
-          const { createCoinPayPanel } = require('../utils/coinPayPanelBuilder');
           const panelPayload = createCoinPayPanel();
           const newMsg = await message.channel.send(panelPayload);
           db.setGuildSettings(guildId, {
@@ -110,7 +122,6 @@ module.exports = {
       }
     }
 
-    // Hỗ trợ Admin gõ lệnh dạng văn bản (/setupchannels hoặc !setupchannels)
     if (contentLower.startsWith('/setupchannels') || contentLower.startsWith('!setupchannels')) {
       if (message.member && (message.member.permissions.has('ManageGuild') || message.member.permissions.has('Administrator'))) {
         try {
@@ -130,7 +141,6 @@ module.exports = {
       }
     }
 
-    // Hỗ trợ Admin gõ lệnh dạng văn bản (/bill hoặc !bill)
     if (contentLower.startsWith('/bill') || contentLower.startsWith('!bill')) {
       if (message.member && (message.member.permissions.has('ManageGuild') || message.member.permissions.has('Administrator'))) {
         try {
@@ -146,49 +156,23 @@ module.exports = {
         }
       }
     }
-  } // Kết thúc khối kiểm tra !message.author.bot
 
     if (!settings) return;
 
-    // 1. Kiểm tra kênh Bảng Tiện Ích (/choose)
-    if (settings.stickyChannelId === message.channel.id && message.id !== settings.stickyMessageId) {
-      if (stickyTimeouts.has(message.channel.id)) {
-        clearTimeout(stickyTimeouts.get(message.channel.id));
-      }
+    // ==========================================
+    // 2. Kênh Bảng Chọn & Menu: #xccoingame, #traide-xccoin, #điểm-danh-nhận-coin (#điểm-danh-ngày)
+    // Tự động xóa mọi tin nhắn chat của người dùng để kênh CHỈ hiển thị bảng menu và thông báo của bot
+    // Tuyệt đối không xóa/gửi lại bảng để tránh bảng bị ẩn hiện liên tục, chớp giật hay nhân đôi
+    // ==========================================
+    const isProtectedMenuChannel =
+      (settings.gameChannelId && settings.gameChannelId === message.channel.id) ||
+      (settings.coinPayChannelId && settings.coinPayChannelId === message.channel.id) ||
+      (settings.stickyChannelId && settings.stickyChannelId === message.channel.id) ||
+      (settings.checkinChannelId && settings.checkinChannelId === message.channel.id);
 
-      const timeout = setTimeout(async () => {
-        stickyTimeouts.delete(message.channel.id);
-        try {
-          const freshSettings = db.getGuildSettings(guildId);
-          if (freshSettings.stickyMessageId) {
-            const oldMsg = await message.channel.messages.fetch(freshSettings.stickyMessageId).catch(() => null);
-            if (oldMsg) await oldMsg.delete().catch(() => {});
-          }
-
-          const panelPayload = createFeaturePanel();
-          const newMsg = await message.channel.send(panelPayload);
-          db.setGuildSettings(guildId, { stickyMessageId: newMsg.id });
-        } catch (err) {
-          console.error(`[StickyPanel] Lỗi khi duy trì bảng tiện ích ở kênh ${message.channel.id}:`, err);
-        }
-      }, 1200);
-
-      stickyTimeouts.set(message.channel.id, timeout);
-    }
-
-    // 2. Kênh Khu Trò Chơi XCCoin: Tự động xóa chat của người dùng để kênh chỉ có Bảng Chọn & Thông báo của Bot
-    if (settings.gameChannelId === message.channel.id && message.id !== settings.gameMessageId) {
-      if (!message.author.bot) {
-        // Tự động xóa chat của người dùng ngay lập tức
-        await message.delete().catch(() => {});
-        return;
-      }
-    }
-
-    // 3. Kiểm tra kênh Bảng Giao Dịch & Chuyển Tiền XCCoin (/setcoinpay)
-    if (settings.coinPayChannelId === message.channel.id && message.id !== settings.coinPayMessageId) {
-      refreshCoinPayPanel(message.channel, guildId);
+    if (isProtectedMenuChannel) {
+      await message.delete().catch(() => {});
+      return;
     }
   }
 };
-
