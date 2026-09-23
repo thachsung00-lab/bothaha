@@ -13,7 +13,7 @@ function createGamePanel() {
       'Chào mừng bạn đến với Khu Trò Chơi! Thử vận may và nhân số dư XCCoin của bạn:\n\n' +
       '1️⃣ 🎰 **MÁY QUAY SLOT GAME (NỔ HŨ XCCOIN)**\n' +
       '• Quay trúng 3x 7️⃣7️⃣7️⃣ ➡️ **JACKPOT NỔ HŨ GẤP x20 LẦN CƯỢC**!\n' +
-      '• 💎 Kim Cương x10 | 👑 Vương Miện x7 | 🔔 Chuông Vàng x5 | 🍇 Nho x4 | 🍒 Cherry x3 | 2 hình trùng x1.5!\n\n' +
+      '• 💎 Kim Cương x10 | 👑 Vương Miện x7 | 🔔 Chuông Vàng x5 | 🍇 Nho x4 | 🍒 Cherry x3!\n\n' +
       '2️⃣ 🃏 **BÀI CÀO 3 LÁ CÙNG BOT (BA CÀO)**\n' +
       '• Đọ điểm ngẫu nhiên 3 lá cùng Bot (Tối đa 10,000 Coin). Thắng nhận ngay **x2 tiền cược**!\n' +
       '• *Tự động xóa ván cũ sau 10 giây để giữ sạch kênh.*\n\n' +

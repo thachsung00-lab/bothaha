@@ -98,7 +98,15 @@ function createMockInteraction(userId = 'test_user_1', guildId = 'test_guild_1',
     },
     editReply: async (payload) => {
       editedContent = payload;
-      return payload;
+      return {
+        id: 'msg_reply_test',
+        ...payload,
+        edit: async (newP) => {
+          editedContent = newP;
+          return this;
+        },
+        delete: async () => {}
+      };
     },
     deleteReply: async () => {},
     getResults: () => ({ repliedContent, editedContent, deferred, ephemeral })
@@ -234,7 +242,7 @@ async function runTests() {
     const res = playSlot(1000);
     assert.strictEqual(res.reels.length, 3);
     assert.strictEqual(res.reelEmojis.length, 3);
-    assert.ok(['JACKPOT', 'TRIPLE', 'DOUBLE', 'LOSE'].includes(res.winType));
+    assert.ok(['JACKPOT', 'TRIPLE', 'LOSE'].includes(res.winType));
     assert.ok(typeof res.payout === 'number');
     assert.ok(typeof res.earnedXp === 'number' && res.earnedXp >= 10);
   });
@@ -848,6 +856,8 @@ async function runTests() {
 
   if (failed > 0) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 

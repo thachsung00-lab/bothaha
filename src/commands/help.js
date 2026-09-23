@@ -39,7 +39,7 @@ module.exports = {
         },
         {
           name: '🎰 /slot amount:[tiền cược]',
-          value: 'Quay Máy Quay Xèng Slot Machine (Cược tối đa 10,000 Coin). Nổ hũ 7️⃣7️⃣7️⃣ **x20 lần cược**, Kim Cương x10, Crown x7, Bell x5, trúng đôi x1.5!'
+          value: 'Quay Máy Quay Xèng Slot Machine (Cược tối đa 10,000 Coin). Nổ hũ 7️⃣7️⃣7️⃣ **x20 lần cược**, Kim Cương x10, Crown x7, Bell x5!'
         },
         {
           name: '🃏 /baicao amount:[tiền cược]',

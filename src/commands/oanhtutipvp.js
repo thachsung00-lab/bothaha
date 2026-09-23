@@ -51,8 +51,12 @@ module.exports = {
       const cancelResult = cancelRpsRoom(room.id, null, 'Hết thời gian chờ đối thủ nhận kèo (60s).');
       if (cancelResult.success) {
         const cancelPayload = createRpsPvpCancelledPayload(room, cancelResult.reason);
-        await sentMsg.edit(cancelPayload).catch(() => {});
-        setTimeout(() => sentMsg.delete().catch(() => {}), 10000);
+        if (sentMsg && typeof sentMsg.edit === 'function') {
+          await sentMsg.edit(cancelPayload).catch(() => {});
+        }
+        if (sentMsg && typeof sentMsg.delete === 'function') {
+          setTimeout(() => sentMsg.delete().catch(() => {}), 10000);
+        }
       }
     }, 60000);
   }

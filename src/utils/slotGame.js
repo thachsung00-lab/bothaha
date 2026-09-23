@@ -57,15 +57,7 @@ function playSlot(betAmount = 100) {
       title = `🎉 THẮNG LỚN: 3x ${s1.emoji} (${s1.name})!`;
     }
   }
-  // 2. Kiểm tra 2 biểu tượng giống nhau
-  else if (s1.emoji === s2.emoji || s2.emoji === s3.emoji || s1.emoji === s3.emoji) {
-    winType = 'DOUBLE';
-    multiplier = 1.5;
-    const matchEmoji = (s1.emoji === s2.emoji || s1.emoji === s3.emoji) ? s1.emoji : s2.emoji;
-    winningSymbol = SLOT_SYMBOLS.find(s => s.emoji === matchEmoji);
-    title = `✨ TRÚNG ĐÔI: 2x ${matchEmoji} (Hoàn vốn + thưởng)!`;
-  }
-  // 3. Không trùng
+  // 2. Không đủ 3 hình trùng nhau -> Không trúng (đã bỏ cơ chế an ủi 2 hình 1.5x)
   else {
     winType = 'LOSE';
     multiplier = 0;
@@ -81,8 +73,6 @@ function playSlot(betAmount = 100) {
     earnedXp = Math.floor(150 + betAmount * 0.02);
   } else if (winType === 'TRIPLE') {
     earnedXp = Math.floor(80 + betAmount * 0.015);
-  } else if (winType === 'DOUBLE') {
-    earnedXp = Math.floor(35 + betAmount * 0.008);
   } else {
     earnedXp = Math.floor(10 + betAmount * 0.002);
   }
@@ -109,13 +99,11 @@ function createSlotResultEmbed(user, slotResult, newBalance) {
 
   let color = config.colors.error;
   if (winType === 'JACKPOT') color = config.colors.gold;
-  else if (winType === 'TRIPLE' || winType === 'DOUBLE') color = config.colors.success;
+  else if (winType === 'TRIPLE') color = config.colors.success;
 
   let outcomeText = '';
   if (winType === 'JACKPOT' || winType === 'TRIPLE') {
     outcomeText = `🎊 **THẮNG GẤP x${multiplier} LẦN CƯỢC**! 🎁 Nhận về: **+${payout.toLocaleString()} XCCoin**`;
-  } else if (winType === 'DOUBLE') {
-    outcomeText = `✨ **THẮNG ĐÔI x${multiplier}**! 🎁 Nhận về: **+${payout.toLocaleString()} XCCoin** (Lãi: +${netProfit.toLocaleString()} Coin)`;
   } else {
     outcomeText = `💀 **THUA CUỘC**! Mất cược: **-${betAmount.toLocaleString()} XCCoin**`;
   }
@@ -165,8 +153,6 @@ function createSlotRulesEmbed() {
       '• 🔔 🔔 🔔 — **CHUÔNG VÀNG MAY MẮN**: 🔔 **Ăn gấp x5** tiền cược!\n' +
       '• 🍇 🍇 🍇 — **NHO TRÀN ĐẦY**: 🍇 **Ăn gấp x4** tiền cược!\n' +
       '• 🍒 🍒 🍒 — **CHERRY TƯƠI ĐỎ**: 🍒 **Ăn gấp x3** tiền cược!\n\n' +
-      '✨ **THƯỞNG AN ỦI KHI TRÚNG 2 BIỂU TƯỢNG GIỐNG NHAU:**\n' +
-      '• Xuất hiện 2 ô giống nhau bất kỳ ➡️ **Ăn x1.5** tiền cược (Hoàn vốn + có lãi nhẹ)!\n\n' +
       '⭐ Mỗi lượt quay còn cộng thêm điểm **XP Tu Vi** giúp bạn nâng cấp cảnh giới tu tiên!\n' +
       '🎲 *Mức cược: Tự do (Tối đa 10,000 XCCoin/lần)*'
     )
