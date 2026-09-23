@@ -35,19 +35,27 @@ module.exports = {
         },
         {
           name: '🎰 /setgame channel:[kênh] (Dành cho Admin)',
-          value: 'Cài đặt Bảng Khu Trò Chơi XCCoin (XSMN & Bài Cào) cố định tại kênh chỉ định kèm các nút cược nhanh.'
+          value: 'Cài đặt Bảng Sòng Bạc & Máy Quay Slot XCCoin cố định tại kênh chỉ định kèm các nút cược nhanh.'
+        },
+        {
+          name: '🎰 /slot amount:[tiền cược]',
+          value: 'Quay Máy Quay Xèng Slot Machine (Cược 100 - 10,000 Coin). Nổ hũ 7️⃣7️⃣7️⃣ **x20 lần cược**, Kim Cương x10, Crown x7, Bell x5, trúng đôi x1.5!'
         },
         {
           name: '🃏 /baicao amount:[tiền cược]',
-          value: 'Chơi Bài Cào 3 lá cùng Bot (Mức cược: 100 đến 10,000 XCCoin/ván). Tỷ lệ thắng x2 ngẫu nhiên.'
+          value: 'Chơi Bài Cào 3 lá cùng Bot (Mức cược: 100 đến 10,000 XCCoin/ván). Tỷ lệ thắng x2. Tự động dọn ván sau 10 giây.'
         },
         {
           name: '👥 /baicaopvp amount:[tiền cược] [target] [max_players]',
           value: 'Tạo bàn chơi Bài Cào 3 lá cùng người khác trong Server (2 - 8 người). Người thắng có bài cao nhất ẵm trọn toàn bộ Hũ Tiền Cược (Pot)!'
         },
         {
-          name: '🎟️ /xsmn number:[00-99] amount:[tiền cược]',
-          value: 'Dự đoán Giải 8 Xổ Số Miền Nam hôm nay (Mức cược tối thiểu 100 Coin). Trúng giải nhận gấp **x10 XCCoin**! Kết quả mở lúc 16h35.'
+          name: '🎴 /xidach amount:[tiền cược]',
+          value: 'Chơi Kéo Xì Dách (Blackjack 21 Điểm) cùng Bot. Người chơi có thể Rút bài (Hit) hoặc Dằn bài (Stand). Tự động dọn ván sau 10 giây.'
+        },
+        {
+          name: '👥 /xidachpvp amount:[tiền cược] [target] [max_players]',
+          value: 'Tạo phòng Kéo Xì Dách nhiều người trong Server (2 - 8 người). Xì Hoa > Xì Dách > Ngũ Linh > Điểm cao nhất ẵm trọn Pot!'
         },
         {
           name: '⚙️ /choose channel:[kênh] (Dành cho Admin)',

@@ -176,30 +176,13 @@ module.exports = {
       stickyTimeouts.set(message.channel.id, timeout);
     }
 
-    // 2. Kiểm tra kênh Khu Trò Chơi XCCoin (/setgame)
-    if (settings.gameChannelId === message.channel.id && message.id !== settings.gameMessageId && settings.gameChannelId !== settings.stickyChannelId) {
-      if (gameTimeouts.has(message.channel.id)) {
-        clearTimeout(gameTimeouts.get(message.channel.id));
+    // 2. Kênh Khu Trò Chơi XCCoin: Tự động xóa chat của người dùng để kênh chỉ có Bảng Chọn & Thông báo của Bot
+    if (settings.gameChannelId === message.channel.id && message.id !== settings.gameMessageId) {
+      if (!message.author.bot) {
+        // Tự động xóa chat của người dùng ngay lập tức
+        await message.delete().catch(() => {});
+        return;
       }
-
-      const timeout = setTimeout(async () => {
-        gameTimeouts.delete(message.channel.id);
-        try {
-          const freshSettings = db.getGuildSettings(guildId);
-          if (freshSettings.gameMessageId) {
-            const oldMsg = await message.channel.messages.fetch(freshSettings.gameMessageId).catch(() => null);
-            if (oldMsg) await oldMsg.delete().catch(() => {});
-          }
-
-          const panelPayload = createGamePanel();
-          const newMsg = await message.channel.send(panelPayload);
-          db.setGuildSettings(guildId, { gameMessageId: newMsg.id });
-        } catch (err) {
-          console.error(`[GamePanel] Lỗi khi duy trì bảng trò chơi ở kênh ${message.channel.id}:`, err);
-        }
-      }, 1200);
-
-      gameTimeouts.set(message.channel.id, timeout);
     }
 
     // 3. Kiểm tra kênh Bảng Giao Dịch & Chuyển Tiền XCCoin (/setcoinpay)

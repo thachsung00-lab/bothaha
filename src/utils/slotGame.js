@@ -1,0 +1,182 @@
+const { EmbedBuilder } = require('discord.js');
+const config = require('../config.json');
+
+// Danh sách biểu tượng Slot và trọng số xuất hiện
+const SLOT_SYMBOLS = [
+  { emoji: '7️⃣', name: 'Lucky 7', weight: 2, multiplier: 20, isJackpot: true },
+  { emoji: '💎', name: 'Kim Cương', weight: 3, multiplier: 10 },
+  { emoji: '👑', name: 'Vương Miện', weight: 4, multiplier: 7 },
+  { emoji: '🔔', name: 'Chuông Vàng', weight: 5, multiplier: 5 },
+  { emoji: '🍇', name: 'Nho May Mắn', weight: 6, multiplier: 4 },
+  { emoji: '🍒', name: 'Cherry', weight: 7, multiplier: 3 }
+];
+
+// Tạo pool ngẫu nhiên dựa theo trọng số
+const SYMBOL_POOL = [];
+for (const s of SLOT_SYMBOLS) {
+  for (let i = 0; i < s.weight; i++) {
+    SYMBOL_POOL.push(s);
+  }
+}
+
+/**
+ * Chọn 1 biểu tượng ngẫu nhiên từ pool
+ */
+function getRandomSymbol() {
+  const index = Math.floor(Math.random() * SYMBOL_POOL.length);
+  return SYMBOL_POOL[index];
+}
+
+/**
+ * Thực hiện quay 1 lượt Slot Machine
+ * @param {number} betAmount Số tiền cược
+ * @returns {object} Kết quả quay slot
+ */
+function playSlot(betAmount = 100) {
+  const s1 = getRandomSymbol();
+  const s2 = getRandomSymbol();
+  const s3 = getRandomSymbol();
+
+  const reels = [s1, s2, s3];
+  const reelEmojis = reels.map(r => r.emoji);
+
+  let winType = 'LOSE'; // 'JACKPOT' | 'TRIPLE' | 'DOUBLE' | 'LOSE'
+  let multiplier = 0;
+  let title = '';
+  let winningSymbol = null;
+
+  // 1. Kiểm tra 3 biểu tượng giống nhau
+  if (s1.emoji === s2.emoji && s2.emoji === s3.emoji) {
+    winningSymbol = s1;
+    multiplier = s1.multiplier;
+    if (s1.isJackpot) {
+      winType = 'JACKPOT';
+      title = '🔥 JACKPOT NỔ HŨ TOÀN SERVER! 🔥';
+    } else {
+      winType = 'TRIPLE';
+      title = `🎉 THẮNG LỚN: 3x ${s1.emoji} (${s1.name})!`;
+    }
+  }
+  // 2. Kiểm tra 2 biểu tượng giống nhau
+  else if (s1.emoji === s2.emoji || s2.emoji === s3.emoji || s1.emoji === s3.emoji) {
+    winType = 'DOUBLE';
+    multiplier = 1.5;
+    const matchEmoji = (s1.emoji === s2.emoji || s1.emoji === s3.emoji) ? s1.emoji : s2.emoji;
+    winningSymbol = SLOT_SYMBOLS.find(s => s.emoji === matchEmoji);
+    title = `✨ TRÚNG ĐÔI: 2x ${matchEmoji} (Hoàn vốn + thưởng)!`;
+  }
+  // 3. Không trùng
+  else {
+    winType = 'LOSE';
+    multiplier = 0;
+    title = '💨 KHÔNG TRÚNG! Chúc bạn may mắn lần sau!';
+  }
+
+  const payout = Math.floor(betAmount * multiplier);
+  const netProfit = payout - betAmount;
+
+  // Tính XP tu vi
+  let earnedXp = 10;
+  if (winType === 'JACKPOT') {
+    earnedXp = Math.floor(150 + betAmount * 0.02);
+  } else if (winType === 'TRIPLE') {
+    earnedXp = Math.floor(80 + betAmount * 0.015);
+  } else if (winType === 'DOUBLE') {
+    earnedXp = Math.floor(35 + betAmount * 0.008);
+  } else {
+    earnedXp = Math.floor(10 + betAmount * 0.002);
+  }
+
+  return {
+    reels,
+    reelEmojis,
+    winType,
+    multiplier,
+    title,
+    winningSymbol,
+    betAmount,
+    payout,
+    netProfit,
+    earnedXp
+  };
+}
+
+/**
+ * Tạo Embed giao diện kết quả quay Slot
+ */
+function createSlotResultEmbed(user, slotResult, newBalance) {
+  const { reelEmojis, winType, multiplier, title, betAmount, payout, netProfit, earnedXp } = slotResult;
+
+  let color = config.colors.error;
+  if (winType === 'JACKPOT') color = config.colors.gold;
+  else if (winType === 'TRIPLE' || winType === 'DOUBLE') color = config.colors.success;
+
+  let outcomeText = '';
+  if (winType === 'JACKPOT' || winType === 'TRIPLE') {
+    outcomeText = `🎊 **THẮNG GẤP x${multiplier} LẦN CƯỢC**! 🎁 Nhận về: **+${payout.toLocaleString()} XCCoin**`;
+  } else if (winType === 'DOUBLE') {
+    outcomeText = `✨ **THẮNG ĐÔI x${multiplier}**! 🎁 Nhận về: **+${payout.toLocaleString()} XCCoin** (Lãi: +${netProfit.toLocaleString()} Coin)`;
+  } else {
+    outcomeText = `💀 **THUA CUỘC**! Mất cược: **-${betAmount.toLocaleString()} XCCoin**`;
+  }
+
+  const machineFrame =
+    '```text\n' +
+    '╔═════════════════════════════╗\n' +
+    '║      🎰 MÁY QUAY XÈNG 🎰     ║\n' +
+    '╠═════════════════════════════╣\n' +
+    `║       [ ${reelEmojis[0]}  |  ${reelEmojis[1]}  |  ${reelEmojis[2]} ]       ║\n` +
+    '╚═════════════════════════════╝\n' +
+    '```';
+
+  const embed = new EmbedBuilder()
+    .setColor(color)
+    .setAuthor({
+      name: `Máy Quay Xèng Slot Machine | ${user.username}`,
+      iconURL: user.displayAvatarURL({ dynamic: true })
+    })
+    .setTitle(title)
+    .setDescription(
+      machineFrame + '\n' +
+      outcomeText + '\n\n' +
+      `💰 **Tiền cược:** **${betAmount.toLocaleString()}** XCCoin\n` +
+      `⭐ **Tu vi nhận được:** **+${earnedXp.toLocaleString()}** XP\n` +
+      `💳 **Số dư ví hiện tại:** **${newBalance.toLocaleString()}** XCCoin`
+    )
+    .setFooter({ text: '⏱️ Thông báo này sẽ tự động xóa sau 15 giây để giữ sạch kênh.' })
+    .setTimestamp();
+
+  return embed;
+}
+
+/**
+ * Bảng hiển thị tỷ lệ nổ hũ của Slot
+ */
+function createSlotRulesEmbed() {
+  return new EmbedBuilder()
+    .setColor(config.colors.gold)
+    .setTitle('🎰 BẢNG TỶ LỆ TRẢ THƯỞNG MÁY QUAY SLOT XCCOIN 🏆')
+    .setDescription(
+      '**Thử vận may với Máy Quay Xèng Slot Machine 3 Hàng!**\n\n' +
+      '👑 **CÁC MỨC THẮNG KHI QUAY RA 3 BIỂU TƯỢNG TRÙNG NHAU:**\n' +
+      '• 7️⃣ 7️⃣ 7️⃣ — **JACKPOT NỔ HŨ TOÀN SERVER**: 🌟 **Ăn gấp x20** tiền cược!\n' +
+      '• 💎 💎 💎 — **KIM CƯƠNG TOÀN NĂNG**: 💎 **Ăn gấp x10** tiền cược!\n' +
+      '• 👑 👑 👑 — **VƯƠNG MIỆN HOÀNG GIA**: 👑 **Ăn gấp x7** tiền cược!\n' +
+      '• 🔔 🔔 🔔 — **CHUÔNG VÀNG MAY MẮN**: 🔔 **Ăn gấp x5** tiền cược!\n' +
+      '• 🍇 🍇 🍇 — **NHO TRÀN ĐẦY**: 🍇 **Ăn gấp x4** tiền cược!\n' +
+      '• 🍒 🍒 🍒 — **CHERRY TƯƠI ĐỎ**: 🍒 **Ăn gấp x3** tiền cược!\n\n' +
+      '✨ **THƯỞNG AN ỦI KHI TRÚNG 2 BIỂU TƯỢNG GIỐNG NHAU:**\n' +
+      '• Xuất hiện 2 ô giống nhau bất kỳ ➡️ **Ăn x1.5** tiền cược (Hoàn vốn + có lãi nhẹ)!\n\n' +
+      '⭐ Mỗi lượt quay còn cộng thêm điểm **XP Tu Vi** giúp bạn nâng cấp cảnh giới tu tiên!\n' +
+      '🎲 *Cược tối thiểu: 100 XCCoin | Cược tối đa: 10,000 XCCoin/lần*'
+    )
+    .setFooter({ text: 'Tự động đóng sau 1 phút' })
+    .setTimestamp();
+}
+
+module.exports = {
+  SLOT_SYMBOLS,
+  playSlot,
+  createSlotResultEmbed,
+  createSlotRulesEmbed
+};

@@ -1,31 +1,52 @@
 const db = require('../database/db');
-const { createShuffledDeck, evaluateHand } = require('../utils/cardGame');
+const { createShuffledDeck } = require('../utils/cardGame');
+const { evaluateXiDachHand } = require('../utils/xidachGame');
 
-// Lưu trữ các phòng chơi PvP đang hoạt động theo roomId
-const activeRooms = new Map();
+const activeXiDachRooms = new Map();
 
 /**
- * Tạo một phòng chơi Bài Cào PvP mới
+ * Kiểm tra xem người dùng có đang trong phòng chờ Xì Dách nào không
  */
-function createRoom({ hostId, hostUsername, guildId, channelId, amount, targetUserId = null, maxPlayers = 6 }) {
-  // Kiểm tra nếu người chơi đang có phòng chờ hoặc đang trong phòng khác
-  const activeRoom = getActiveRoomByPlayer(hostId);
+function getActiveXiDachRoomByPlayer(userId) {
+  for (const room of activeXiDachRooms.values()) {
+    if (room.status === 'WAITING' && room.players.some(p => p.userId === userId)) {
+      return room;
+    }
+  }
+  return null;
+}
+
+/**
+ * Lấy phòng Xì Dách theo ID
+ */
+function getXiDachRoom(roomId) {
+  return activeXiDachRooms.get(roomId) || null;
+}
+
+/**
+ * Tạo một phòng chơi Xì Dách PvP mới
+ */
+function createXiDachRoom({ hostId, hostUsername, guildId, channelId, amount, targetUserId = null, maxPlayers = 6 }) {
+  const activeRoom = getActiveXiDachRoomByPlayer(hostId);
   if (activeRoom) {
     return {
       success: false,
-      reason: `Bạn đang có một bàn chơi đang chờ hoặc đang tham gia bàn khác (Mã: \`${activeRoom.roomId}\`)! Vui lòng hoàn thành hoặc hủy bàn cũ trước.`
+      reason: `Bạn đang có một bàn Xì Dách đang chờ (Mã: \`${activeRoom.roomId}\`)! Vui lòng hoàn thành hoặc hủy bàn cũ trước.`
     };
   }
 
   const user = db.getUser(hostId, guildId);
   if ((user.xccoin || 0) < amount) {
-    return { success: false, reason: `Số dư của bạn không đủ! Bạn có ${(user.xccoin || 0).toLocaleString()} XCCoin, cần ${amount.toLocaleString()} XCCoin.` };
+    return {
+      success: false,
+      reason: `Số dư của bạn không đủ! Bạn có ${(user.xccoin || 0).toLocaleString()} XCCoin, cần ${amount.toLocaleString()} XCCoin.`
+    };
   }
 
   // Trừ tiền cược của chủ phòng
   db.addXCCoin(hostId, guildId, -amount);
 
-  const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const roomId = `xdroom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const room = {
     roomId,
     hostId,
@@ -39,91 +60,55 @@ function createRoom({ hostId, hostUsername, guildId, channelId, amount, targetUs
     players: [
       { userId: hostId, username: hostUsername }
     ],
-    status: 'WAITING', // 'WAITING' | 'PLAYING' | 'ENDED' | 'CANCELLED'
+    status: 'WAITING',
     createdAt: Date.now(),
     timer: null
   };
 
-  activeRooms.set(roomId, room);
+  activeXiDachRooms.set(roomId, room);
   return { success: true, room };
 }
 
 /**
- * Lấy phòng chơi theo ID
+ * Người chơi tham gia phòng Xì Dách
  */
-function getRoom(roomId) {
-  return activeRooms.get(roomId) || null;
-}
-
-/**
- * Lấy phòng chơi theo Message ID
- */
-function getRoomByMessageId(messageId) {
-  for (const room of activeRooms.values()) {
-    if (room.messageId === messageId) return room;
-  }
-  return null;
-}
-
-/**
- * Kiểm tra xem người dùng có đang trong phòng chờ nào không
- */
-function getActiveRoomByPlayer(userId) {
-  for (const room of activeRooms.values()) {
-    if (room.status === 'WAITING' && room.players.some(p => p.userId === userId)) {
-      return room;
-    }
-  }
-  return null;
-}
-
-/**
- * Người chơi tham gia phòng
- */
-function joinRoom(roomId, userId, username) {
-  const room = activeRooms.get(roomId);
+function joinXiDachRoom(roomId, userId, username) {
+  const room = activeXiDachRooms.get(roomId);
   if (!room) return { success: false, reason: 'Phòng chơi không tồn tại hoặc đã kết thúc!' };
   if (room.status !== 'WAITING') return { success: false, reason: 'Ván bài đã bắt đầu hoặc đã kết thúc!' };
 
-  // Nếu phòng có người được chỉ định thách đấu
   if (room.targetUserId && room.targetUserId !== userId) {
     return { success: false, reason: 'Đây là phòng thách đấu riêng, bạn không thể tham gia!' };
   }
 
-  // Kiểm tra đã vào chưa
   if (room.players.some(p => p.userId === userId)) {
     return { success: false, reason: 'Bạn đã tham gia phòng này rồi!' };
   }
 
-  // Kiểm tra đang ở phòng khác
-  const otherRoom = getActiveRoomByPlayer(userId);
+  const otherRoom = getActiveXiDachRoomByPlayer(userId);
   if (otherRoom && otherRoom.roomId !== roomId) {
     return { success: false, reason: `Bạn đang ở một bàn chơi khác (Mã: \`${otherRoom.roomId}\`)! Vui lòng rời hoặc hoàn tất bàn đó trước.` };
   }
 
-  // Kiểm tra phòng đầy
   if (room.players.length >= room.maxPlayers) {
     return { success: false, reason: 'Phòng chơi đã đủ người!' };
   }
 
-  // Kiểm tra số dư
   const user = db.getUser(userId, room.guildId);
   if ((user.xccoin || 0) < room.amount) {
     return { success: false, reason: `Số dư của bạn không đủ! Cần ${room.amount.toLocaleString()} XCCoin để tham gia.` };
   }
 
-  // Trừ tiền cược
   db.addXCCoin(userId, room.guildId, -room.amount);
-
   room.players.push({ userId, username });
   return { success: true, room };
 }
 
 /**
- * Người chơi rời phòng
+ * Người chơi rời phòng Xì Dách
  */
-function leaveRoom(roomId, userId) {
-  const room = activeRooms.get(roomId);
+function leaveXiDachRoom(roomId, userId) {
+  const room = activeXiDachRooms.get(roomId);
   if (!room) return { success: false, reason: 'Phòng chơi không tồn tại!' };
   if (room.status !== 'WAITING') return { success: false, reason: 'Ván bài đang diễn ra, không thể rời!' };
 
@@ -134,18 +119,16 @@ function leaveRoom(roomId, userId) {
   const idx = room.players.findIndex(p => p.userId === userId);
   if (idx === -1) return { success: false, reason: 'Bạn không có trong phòng này!' };
 
-  // Hoàn tiền cược cho người rời
   db.addXCCoin(userId, room.guildId, room.amount);
   room.players.splice(idx, 1);
-
   return { success: true, room };
 }
 
 /**
- * Hủy phòng chơi và hoàn tiền cho tất cả mọi người
+ * Hủy phòng Xì Dách
  */
-function cancelRoom(roomId, reason = 'Phòng chơi đã được hủy.') {
-  const room = activeRooms.get(roomId);
+function cancelXiDachRoom(roomId, reason = 'Phòng chơi đã được hủy.') {
+  const room = activeXiDachRooms.get(roomId);
   if (!room) return null;
 
   if (room.timer) {
@@ -153,22 +136,20 @@ function cancelRoom(roomId, reason = 'Phòng chơi đã được hủy.') {
     room.timer = null;
   }
 
-  // Hoàn tiền cho tất cả người chơi trong phòng
   for (const p of room.players) {
     db.addXCCoin(p.userId, room.guildId, room.amount);
   }
 
   room.status = 'CANCELLED';
-  activeRooms.delete(roomId);
-
+  activeXiDachRooms.delete(roomId);
   return { room, reason };
 }
 
 /**
- * Bắt đầu ván bài và phân định thắng thua
+ * Bắt đầu ván Xì Dách PvP
  */
-function startRoomGame(roomId) {
-  const room = activeRooms.get(roomId);
+function startXiDachRoomGame(roomId) {
+  const room = activeXiDachRooms.get(roomId);
   if (!room) return { success: false, reason: 'Phòng chơi không tồn tại!' };
   if (room.players.length < 2) return { success: false, reason: 'Cần ít nhất 2 người chơi để bắt đầu!' };
   if (room.status !== 'WAITING') return { success: false, reason: 'Ván bài đã được bắt đầu trước đó!' };
@@ -180,61 +161,80 @@ function startRoomGame(roomId) {
 
   room.status = 'PLAYING';
 
-  // 1. Chia bài từ 1 bộ 52 lá duy nhất
   const deck = createShuffledDeck();
   const playerHands = [];
 
+  // Chia 2 lá đầu tiên cho từng người
   for (const p of room.players) {
-    const cards = [deck.pop(), deck.pop(), deck.pop()];
-    const hand = evaluateHand(cards);
+    const cards = [deck.pop(), deck.pop()];
     playerHands.push({
       userId: p.userId,
       username: p.username,
-      cards,
-      hand
+      cards
     });
   }
 
-  // 2. Tìm người chiến thắng: so Tier trước, rồi so Score
-  // Sắp xếp giảm dần theo điểm
+  // Kéo bài theo luật: Nếu chưa đủ 16 tuổi (< 16), người chơi tự động kéo đến khi >= 16 hoặc quắc/đủ 5 lá
+  for (const p of playerHands) {
+    let hand = evaluateXiDachHand(p.cards);
+
+    // Nếu không phải Xì Hoa hoặc Xì Dách và điểm < 16, kéo bài tiếp
+    while (!hand.isXiHoa && !hand.isBlackjack && hand.points < 16 && p.cards.length < 5) {
+      p.cards.push(deck.pop());
+      hand = evaluateXiDachHand(p.cards);
+    }
+
+    p.hand = hand;
+  }
+
+  // Sắp xếp tay bài:
+  // Tier: 4 (Xì Hoa) > 3 (Xì Dách) > 2.5 (Ngũ Linh) > 2 (21 điểm) > 1 (Điểm thường >= 16) > 0 (Quắc)
   playerHands.sort((a, b) => {
     if (b.hand.tier !== a.hand.tier) {
       return b.hand.tier - a.hand.tier;
     }
-    return b.hand.score - a.hand.score;
+    // Cùng Ngũ Linh: điểm nhỏ hơn thắng
+    if (a.hand.isNguLinh && b.hand.isNguLinh) {
+      return a.hand.points - b.hand.points;
+    }
+    // Cùng điểm thường: điểm lớn hơn thắng
+    return b.hand.points - a.hand.points;
   });
 
   const bestTier = playerHands[0].hand.tier;
-  const bestScore = playerHands[0].hand.score;
+  const bestPoints = playerHands[0].hand.points;
 
-  // Lấy tất cả người chơi có cùng điểm cao nhất (trường hợp hòa)
-  const winners = playerHands.filter(p => p.hand.tier === bestTier && p.hand.score === bestScore);
+  // Tìm người chiến thắng
+  let winners = [];
+  if (bestTier === 2.5) {
+    // Ngũ linh: cùng tier 2.5 và cùng bestPoints
+    winners = playerHands.filter(p => p.hand.tier === bestTier && p.hand.points === bestPoints);
+  } else {
+    winners = playerHands.filter(p => p.hand.tier === bestTier && p.hand.points === bestPoints);
+  }
+
   const totalPot = room.amount * room.players.length;
   const payoutPerWinner = Math.floor(totalPot / winners.length);
 
-  // 3. Trả thưởng XCCoin và XP cho người chơi
-  const levelHandler = require('./levelHandler');
+  // Trả thưởng
   const winnerIds = new Set(winners.map(w => w.userId));
-
-  // Người thắng nhận XCCoin và XP lớn
   for (const w of winners) {
     db.addXCCoin(w.userId, room.guildId, payoutPerWinner);
-    const winXp = levelHandler.calculatePvpCardGameXp(true, w.hand, totalPot);
+    const winXp = Math.floor(60 + totalPot * 0.01);
     db.addXp(w.userId, room.guildId, winXp);
     w.earnedXp = winXp;
   }
 
-  // Các người chơi khác nhận XP an ủi (tu vi cọ xát)
   for (const p of playerHands) {
     if (!winnerIds.has(p.userId)) {
-      const partXp = levelHandler.calculatePvpCardGameXp(false, p.hand, room.amount);
+      const partXp = Math.floor(25 + room.amount * 0.005);
       db.addXp(p.userId, room.guildId, partXp);
       p.earnedXp = partXp;
     }
   }
 
   room.status = 'ENDED';
-  activeRooms.delete(roomId);
+  activeXiDachRooms.delete(roomId);
 
   return {
     success: true,
@@ -248,13 +248,12 @@ function startRoomGame(roomId) {
 }
 
 module.exports = {
-  activeRooms,
-  createRoom,
-  getRoom,
-  getRoomByMessageId,
-  getActiveRoomByPlayer,
-  joinRoom,
-  leaveRoom,
-  cancelRoom,
-  startRoomGame
+  activeXiDachRooms,
+  getXiDachRoom,
+  getActiveXiDachRoomByPlayer,
+  createXiDachRoom,
+  joinXiDachRoom,
+  leaveXiDachRoom,
+  cancelXiDachRoom,
+  startXiDachRoomGame
 };

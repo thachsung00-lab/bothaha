@@ -98,9 +98,14 @@ module.exports = {
           inline: true
         }
       )
-      .setFooter({ text: 'Tỷ lệ thắng ngẫu nhiên chuẩn bài 52 lá • Tối đa 10,000 XCCoin/ván' })
+      .setFooter({ text: 'Tỷ lệ thắng ngẫu nhiên chuẩn bài 52 lá • Tự động xóa ván sau 10 giây' })
       .setTimestamp();
 
-    return interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
+
+    // Tự động xóa ván cũ sau 10 giây khi đấu với máy
+    setTimeout(() => {
+      interaction.deleteReply().catch(() => {});
+    }, 10000);
   }
 };

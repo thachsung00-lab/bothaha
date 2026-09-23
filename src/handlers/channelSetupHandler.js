@@ -140,7 +140,7 @@ async function setupGuildChannels(guild) {
         type: ChannelType.GuildText,
         parent: category.id,
         permissionOverwrites: gameOverwrites,
-        topic: '🎰 Sòng bạc & Trò chơi XCCoin (XSMN Giải 8 x10, Bài Cào vs Bot, Bàn Cào PvP Nhóm)'
+        topic: '🎰 Sòng bạc & Trò chơi XCCoin (Máy Quay Slot Nổ Hũ x20, Bài Cào 3 Lá, Kéo Xì Dách)'
       });
       console.log(`[ChannelSetup] Đã tạo kênh #xccoingame`);
     } else {

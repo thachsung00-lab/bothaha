@@ -6,25 +6,29 @@ const path = require('path');
 const db = require('../src/database/db');
 const levelHandler = require('../src/handlers/levelHandler');
 const { playBaiCao, createShuffledDeck, evaluateHand } = require('../src/utils/cardGame');
-const { getTodayStations, drawLotteryResults, processDailyLotteryDraw } = require('../src/handlers/lotteryHandler');
+const { playSlot, createSlotResultEmbed, createSlotRulesEmbed } = require('../src/utils/slotGame');
+const { evaluateXiDachHand } = require('../src/utils/xidachGame');
+const { startSoloGame, handlePlayerHit, handlePlayerStand } = require('../src/handlers/xidachSoloHandler');
+const { createXiDachRoom, startXiDachRoomGame, cancelXiDachRoom } = require('../src/handlers/xidachPvpHandler');
 const { createGamePanel } = require('../src/utils/gamePanelBuilder');
 const { createFeaturePanel } = require('../src/utils/panelBuilder');
 
 // Các lệnh
 const baicaoCmd = require('../src/commands/baicao');
 const baicaopvpCmd = require('../src/commands/baicaopvp');
+const slotCmd = require('../src/commands/slot');
+const xidachCmd = require('../src/commands/xidach');
+const xidachpvpCmd = require('../src/commands/xidachpvp');
 const chooseCmd = require('../src/commands/choose');
 const coinCmd = require('../src/commands/coin');
 const dailyCmd = require('../src/commands/daily');
 const helpCmd = require('../src/commands/help');
 const leaderboardCmd = require('../src/commands/leaderboard');
 const postdailyCmd = require('../src/commands/postdaily');
-const quayxsmnCmd = require('../src/commands/quayxsmn');
 const rankCmd = require('../src/commands/rank');
 const setcoinpayCmd = require('../src/commands/setcoinpay');
 const setgameCmd = require('../src/commands/setgame');
 const setleaderboardCmd = require('../src/commands/setleaderboard');
-const xsmnCmd = require('../src/commands/xsmn');
 const { createRoom, joinRoom, leaveRoom, cancelRoom, startRoomGame } = require('../src/handlers/pvpGameHandler');
 const { createCoinPayPanel, createSelectRecipientPayload } = require('../src/utils/coinPayPanelBuilder');
 
@@ -225,50 +229,61 @@ async function runTests() {
     assert.strictEqual(game.botCards.length, 3);
   });
 
-  // 3. Kiểm tra Hệ thống Xổ Số Miền Nam
-  await test('Lottery Engine: Today Stations & Draw Generation', () => {
-    const stations = getTodayStations();
-    assert.ok(Array.isArray(stations) && stations.length >= 3);
-
-    const draw = drawLotteryResults();
-    assert.strictEqual(draw.length, stations.length);
-    for (const d of draw) {
-      assert.ok(d.stationName);
-      assert.strictEqual(d.g8.length, 2);
-      const val = parseInt(d.g8, 10);
-      assert.ok(val >= 0 && val <= 99);
+  // 3. Kiểm tra Hệ thống Máy Quay Slot (Slot Machine)
+  await test('Slot Machine: Random Spin, Payouts & Multipliers', () => {
+    // Test quay slot
+    const slotRes = playSlot(1000);
+    assert.ok(slotRes.reelEmojis && slotRes.reelEmojis.length === 3);
+    assert.ok(['JACKPOT', 'TRIPLE', 'DOUBLE', 'LOSE'].includes(slotRes.winType));
+    if (slotRes.winType === 'JACKPOT') {
+      assert.strictEqual(slotRes.multiplier, 20);
+      assert.strictEqual(slotRes.payout, 20000);
+    } else if (slotRes.winType === 'DOUBLE') {
+      assert.strictEqual(slotRes.multiplier, 1.5);
+      assert.strictEqual(slotRes.payout, 1500);
+    } else if (slotRes.winType === 'LOSE') {
+      assert.strictEqual(slotRes.multiplier, 0);
+      assert.strictEqual(slotRes.payout, 0);
     }
   });
 
-  // 4. Kiểm tra Database & Đặt cược XSMN x10
-  await test('Database: Place Lottery Bet & Settle with x10 Payout', () => {
-    const testUid = 'user_test_lottery_' + Date.now();
-    const testGid = 'guild_test_lottery';
+  // 4. Kiểm tra Đánh giá Bài Xì Dách (Evaluate XiDach Hand)
+  await test('XiDach Engine: Xì Hoa, Xì Dách, Ngũ Linh & Điểm số', () => {
+    // 2 Át -> Xì Hoa
+    const xiHoa = evaluateXiDachHand([
+      { rank: 'A', value: 1 },
+      { rank: 'A', value: 1 }
+    ]);
+    assert.strictEqual(xiHoa.isXiHoa, true);
+    assert.strictEqual(xiHoa.tier, 4);
 
-    // Cho 5000 coin
-    db.addXCCoin(testUid, testGid, 5000);
-    const userBefore = db.getUser(testUid, testGid);
-    assert.strictEqual(userBefore.xccoin, 5000);
+    // Át + K -> Xì Dách
+    const xiDach = evaluateXiDachHand([
+      { rank: 'A', value: 1 },
+      { rank: 'K', value: 0 }
+    ]);
+    assert.strictEqual(xiDach.isBlackjack, true);
+    assert.strictEqual(xiDach.tier, 3);
 
-    // Đặt cược 500 coin vào số "88"
-    const betRes = db.placeLotteryBet(testUid, testGid, '88', 500);
-    assert.strictEqual(betRes.success, true);
-    assert.strictEqual(db.getUser(testUid, testGid).xccoin, 4500);
+    // 5 lá nhỏ <= 21 -> Ngũ Linh
+    const nguLinh = evaluateXiDachHand([
+      { rank: '2', value: 2 },
+      { rank: '3', value: 3 },
+      { rank: '4', value: 4 },
+      { rank: '2', value: 2 },
+      { rank: '5', value: 5 }
+    ]);
+    assert.strictEqual(nguLinh.isNguLinh, true);
+    assert.strictEqual(nguLinh.tier, 2.5);
 
-    // Kết quả mở thưởng có "88"
-    const mockResults = [
-      { stationName: 'TP.HCM', g8: '88' },
-      { stationName: 'Đồng Tháp', g8: '12' }
-    ];
-    const today = db.getTodayVNDateString();
-    const settlement = db.settleLotteryBets(today, mockResults);
-
-    // Xác nhận thắng x10 (500 * 10 = 5000)
-    assert.strictEqual(settlement.winners.length >= 1, true);
-    const myWin = settlement.winners.find(w => w.userId === testUid);
-    assert.ok(myWin);
-    assert.strictEqual(myWin.payout, 5000);
-    assert.strictEqual(db.getUser(testUid, testGid).xccoin, 9500); // 4500 + 5000 = 9500
+    // Quắc (> 21)
+    const quac = evaluateXiDachHand([
+      { rank: '10', value: 0 },
+      { rank: 'K', value: 0 },
+      { rank: '5', value: 5 }
+    ]);
+    assert.strictEqual(quac.isBusted, true);
+    assert.strictEqual(quac.points, 25);
   });
 
   // 5. Kiểm tra thực thi Lệnh /help
@@ -331,16 +346,41 @@ async function runTests() {
     assert.ok(res.editedContent && res.editedContent.embeds);
   });
 
-  // 9. Kiểm tra thực thi Lệnh /xsmn
-  await test('Command: /xsmn', async () => {
-    const uid = 'user_xsmn_test_' + Date.now();
-    const gid = 'guild_xsmn';
+  // 9. Kiểm tra thực thi Lệnh /slot
+  await test('Command: /slot', async () => {
+    const uid = 'user_slot_test_' + Date.now();
+    const gid = 'guild_slot';
     db.addXCCoin(uid, gid, 1000);
 
-    const intXSMN = createMockInteraction(uid, gid, { number: '79', amount: 300 });
-    await xsmnCmd.execute(intXSMN);
-    const res = intXSMN.getResults();
-    assert.ok(res.editedContent && (res.editedContent.embeds || res.editedContent.content));
+    const intSlot = createMockInteraction(uid, gid, { amount: 300 });
+    await slotCmd.execute(intSlot);
+    const res = intSlot.getResults();
+    assert.ok(res.editedContent && res.editedContent.embeds);
+  });
+
+  // 9b. Kiểm tra thực thi Lệnh /xidach (Chơi Xì Dách với Bot)
+  await test('Command: /xidach', async () => {
+    const uid = 'user_xd_test_' + Date.now();
+    const gid = 'guild_xd';
+    db.addXCCoin(uid, gid, 1000);
+
+    const intXD = createMockInteraction(uid, gid, { amount: 200 });
+    await xidachCmd.execute(intXD);
+    const res = intXD.getResults();
+    assert.ok(res.editedContent && res.editedContent.embeds);
+  });
+
+  // 9c. Kiểm tra thực thi Lệnh /xidachpvp (Tạo phòng Xì Dách PvP)
+  await test('Command: /xidachpvp', async () => {
+    const uid = 'user_xdpvp_test_' + Date.now();
+    const gid = 'guild_xdpvp';
+    db.addXCCoin(uid, gid, 2000);
+
+    const intXDPvp = createMockInteraction(uid, gid, { amount: 500, max_players: 4 });
+    await xidachpvpCmd.execute(intXDPvp);
+    const res = intXDPvp.getResults();
+    assert.ok(res.editedContent && res.editedContent.embeds);
+    assert.ok(res.editedContent.components);
   });
 
   // 10. Kiểm tra thực thi Lệnh /leaderboard
@@ -359,11 +399,12 @@ async function runTests() {
     assert.strictEqual(featPanel.components.length, 1);
     assert.strictEqual(featPanel.components[0].components.length, 5); // 5 nút: Daily, Rank, Coin, Top, Chuyển Tiền
 
-    // Bảng Khu Trò Chơi XCCoin (/setgame) - 5 nút
+    // Bảng Khu Trò Chơi XCCoin (/setgame) - 2 hàng nút (3 nút hàng 1, 3 nút hàng 2)
     const gamePanel = createGamePanel();
     assert.ok(gamePanel.embeds && gamePanel.components);
-    assert.strictEqual(gamePanel.components.length, 1);
-    assert.strictEqual(gamePanel.components[0].components.length, 5); // 5 nút: XSMN, Bot, PvP, Vé cược, Đài
+    assert.strictEqual(gamePanel.components.length, 2);
+    assert.strictEqual(gamePanel.components[0].components.length, 3); // Hàng 1: Slot, Bài Cào Bot, Bài Cào PvP
+    assert.strictEqual(gamePanel.components[1].components.length, 3); // Hàng 2: Xì Dách Bot, Xì Dách PvP, Tỷ lệ Slot
 
     // Bảng Chuyển Tiền XCCoin (/setcoinpay) - 3 nút
     const coinPayPanel = createCoinPayPanel();

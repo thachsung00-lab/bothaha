@@ -2,7 +2,6 @@ const { Events, ActivityType } = require('discord.js');
 const voiceHandler = require('../handlers/voiceHandler');
 const { startLeaderboardScheduler } = require('../handlers/leaderboardScheduler');
 const { startDecayTicker } = require('../handlers/decayHandler');
-const { startLotteryScheduler } = require('../handlers/lotteryHandler');
 
 module.exports = {
   name: Events.ClientReady,
@@ -61,9 +60,6 @@ module.exports = {
 
     // Bắt đầu hệ thống trừ phạt khi không online voice quá 24h
     startDecayTicker();
-
-    // Bắt đầu hệ thống tự động mở thưởng XSMN hàng ngày lúc 16h35
-    startLotteryScheduler(client);
 
     // Tự động làm mới bảng điều khiển thống nhất (gồm Bài Cào & Xổ Số) trên kênh đã ghim
     const db = require('../database/db');
