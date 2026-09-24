@@ -58,6 +58,10 @@ module.exports = {
           value: 'Mở kèo Thách Đấu Oẳn Tù Tì PvP 1 vs 1 cùng thành viên khác trong Server. Ra đòn bí mật, người thắng nhận trọn Hũ Pot!'
         },
         {
+          name: '📜 /history [user] [game] [view]',
+          value: 'Xem lịch sử đấu từng ván (phân trang, kết quả chi tiết) và bảng thống kê phong độ, tỷ lệ thắng, lãi/lỗ ròng của bạn hoặc thành viên khác!'
+        },
+        {
           name: '⚙️ /choose channel:[kênh] (Dành cho Admin)',
           value: 'Cài đặt bảng tính năng tương tác tự động luôn hiển thị ở cuối mỗi tin nhắn trong kênh chỉ định (gồm nút Điểm danh, Xem rank, Kiểm tra XCCoin, Bảng xếp hạng, Chuyển tiền).'
         },

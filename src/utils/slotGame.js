@@ -138,6 +138,38 @@ function createSlotResultEmbed(user, slotResult, newBalance) {
 }
 
 /**
+ * Tạo Embed hiển thị quá trình quay Slot (animation / hiệu ứng xoay trục hồi hộp)
+ */
+function createSlotSpinningEmbed(user, betAmount, displayedReels, stepText) {
+  const machineFrame =
+    '```text\n' +
+    '╔═════════════════════════════╗\n' +
+    '║      🎰 MÁY QUAY XÈNG 🎰     ║\n' +
+    '╠═════════════════════════════╣\n' +
+    `║       [ ${displayedReels[0]}  |  ${displayedReels[1]}  |  ${displayedReels[2]} ]       ║\n` +
+    '╚═════════════════════════════╝\n' +
+    '```';
+
+  const embed = new EmbedBuilder()
+    .setColor(config.colors.primary)
+    .setAuthor({
+      name: `Máy Quay Xèng Slot Machine | ${user.username}`,
+      iconURL: user.displayAvatarURL({ dynamic: true })
+    })
+    .setTitle('🎰 ĐANG QUAY MÁY XÈNG...')
+    .setDescription(
+      machineFrame + '\n' +
+      `⚡ **${stepText}**\n\n` +
+      `💰 **Tiền cược:** **${betAmount.toLocaleString()}** XCCoin\n` +
+      `🌟 *Nổ hũ 7️⃣7️⃣7️⃣ x20 lần cược | 💎 x10 | 👑 x7 | 🔔 x5 | 🍇 x4 | 🍒 x3!*`
+    )
+    .setFooter({ text: '🎲 Đang quay... Hãy chờ đợi kết quả!' })
+    .setTimestamp();
+
+  return embed;
+}
+
+/**
  * Bảng hiển thị tỷ lệ nổ hũ của Slot
  */
 function createSlotRulesEmbed() {
@@ -226,6 +258,7 @@ function createSlotPromptPayload(user, currentBalance) {
 module.exports = {
   SLOT_SYMBOLS,
   playSlot,
+  createSlotSpinningEmbed,
   createSlotResultEmbed,
   createSlotRulesEmbed,
   createSlotActionRows,

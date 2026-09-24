@@ -1,3 +1,6 @@
+const { EmbedBuilder } = require('discord.js');
+const config = require('../config.json');
+
 const SUITS = [
   { symbol: '♠', name: 'Bích', color: 'black' },
   { symbol: '♣', name: 'Chuồn', color: 'black' },
@@ -129,8 +132,59 @@ function playBaiCao() {
   };
 }
 
+/**
+ * Tạo Embed hiển thị giai đoạn đang chia bài (3 lá úp)
+ */
+function createDealingBaiCaoEmbed(user, amount, stepText = '🃏 Đang xào bộ bài 52 lá và chia bài...') {
+  const hiddenCards = '`[ 🎴 ??? ]` `[ 🎴 ??? ]` `[ 🎴 ??? ]`';
+
+  return new EmbedBuilder()
+    .setColor(config.colors.primary)
+    .setAuthor({
+      name: `Sòng Bài Cào 3 Lá | ${user.username}`,
+      iconURL: user.displayAvatarURL({ dynamic: true })
+    })
+    .setTitle('🃏 BÀI CÀO 3 LÁ • ĐANG CHIA BÀI...')
+    .setDescription(
+      `⚡ **${stepText}**\n\n` +
+      `👤 **Bài của bạn:**\n${hiddenCards}\n➡️ *3 lá bài đang úp*\n\n` +
+      `🤖 **Bài của Bot:**\n${hiddenCards}\n➡️ *3 lá bài đang úp*\n\n` +
+      `💰 **Tiền cược:** **${amount.toLocaleString()}** XCCoin`
+    )
+    .setFooter({ text: '🎲 Chuẩn bị lật bài... Hãy giữ bình tĩnh!' })
+    .setTimestamp();
+}
+
+/**
+ * Tạo Embed hiển thị giai đoạn nặn bài (mở 2 lá đầu, lá thứ 3 đang nặn)
+ */
+function createPeekingBaiCaoEmbed(user, amount, playerCards, botCards) {
+  const playerCardStr = `\`${playerCards[0].display}\` \`${playerCards[1].display}\` \`[ 🎴 NẶN... ]\``;
+  const botCardStr = `\`${botCards[0].display}\` \`[ 🎴 ??? ]\` \`[ 🎴 ??? ]\``;
+
+  const twoCardSum = (playerCards[0].value + playerCards[1].value) % 10;
+
+  return new EmbedBuilder()
+    .setColor(config.colors.gold)
+    .setAuthor({
+      name: `Sòng Bài Cào 3 Lá | ${user.username}`,
+      iconURL: user.displayAvatarURL({ dynamic: true })
+    })
+    .setTitle('🃏 BÀI CÀO 3 LÁ • ĐANG NẶN LÁ THỨ 3...')
+    .setDescription(
+      `⚡ **Đang nặn lá bài thứ 3 quyết định vận mệnh...**\n\n` +
+      `👤 **Bài của bạn (2 lá đầu được ${twoCardSum} nút):**\n${playerCardStr}\n➡️ *Hồi hộp nặn lá thứ 3...*\n\n` +
+      `🤖 **Bài của Bot:**\n${botCardStr}\n➡️ *Bot đã lật 1 lá*\n\n` +
+      `💰 **Tiền cược:** **${amount.toLocaleString()}** XCCoin`
+    )
+    .setFooter({ text: '👀 Chuẩn bị công bố kết quả toàn ván...' })
+    .setTimestamp();
+}
+
 module.exports = {
   playBaiCao,
   createShuffledDeck,
-  evaluateHand
+  evaluateHand,
+  createDealingBaiCaoEmbed,
+  createPeekingBaiCaoEmbed
 };

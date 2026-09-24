@@ -61,7 +61,7 @@ module.exports = {
     // Bắt đầu hệ thống trừ phạt khi không online voice quá 24h
     startDecayTicker();
 
-    // Tự động làm mới bảng điều khiển thống nhất (gồm Bài Cào & Xổ Số) trên kênh đã ghim
+    // Tự động làm mới bảng điều khiển tiện ích trên kênh đã ghim
     const db = require('../database/db');
     const { createFeaturePanel } = require('../utils/panelBuilder');
 

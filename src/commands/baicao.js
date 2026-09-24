@@ -1,7 +1,9 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const db = require('../database/db');
-const { playBaiCao } = require('../utils/cardGame');
+const { playBaiCao, createDealingBaiCaoEmbed, createPeekingBaiCaoEmbed } = require('../utils/cardGame');
 const config = require('../config.json');
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -33,6 +35,19 @@ module.exports = {
 
     // Chơi ván bài
     const game = playBaiCao();
+
+    // Bước 1: Chia 3 lá bài úp
+    await interaction.editReply({
+      embeds: [createDealingBaiCaoEmbed(interaction.user, amount, '🃏 Đang xào bộ bài 52 lá và chia bài cho 2 tụ...')]
+    });
+    await sleep(900);
+
+    // Bước 2: Nặn bài (mở 2 lá đầu, lá thứ 3 đang nặn)
+    await interaction.editReply({
+      embeds: [createPeekingBaiCaoEmbed(interaction.user, amount, game.playerCards, game.botCards)]
+    });
+    await sleep(1100);
+
     let resultTitle = '';
     let resultColor = config.colors.primary;
     let balanceChangeText = '';
@@ -52,6 +67,19 @@ module.exports = {
       resultColor = config.colors.gold;
       balanceChangeText = '±0 XCCoin (Hoàn lại 100% tiền cược)';
     }
+
+    // Ghi nhận lịch sử đấu
+    db.addGameHistory({
+      userId,
+      guildId,
+      game: 'baicao_solo',
+      gameName: '🃏 Bài Cào (Solo)',
+      betAmount: amount,
+      result: game.result,
+      profit: game.result === 'WIN' ? amount : (game.result === 'LOSE' ? -amount : 0),
+      details: `Bạn: ${game.playerHand.name} (${game.playerCards.map(c => c.display).join(' ')}) vs Bot: ${game.botHand.name} (${game.botCards.map(c => c.display).join(' ')})`,
+      opponent: 'Bot 🤖'
+    });
 
     const levelHandler = require('../handlers/levelHandler');
     const earnedXp = levelHandler.calculateCardGameXp(game.result, game.playerHand, amount);

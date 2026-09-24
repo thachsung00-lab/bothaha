@@ -2,15 +2,18 @@ const { Events, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Ac
 const dailyCommand = require('../commands/daily');
 const db = require('../database/db');
 const levelHandler = require('../handlers/levelHandler');
-const { playBaiCao } = require('../utils/cardGame');
+const { playBaiCao, createDealingBaiCaoEmbed, createPeekingBaiCaoEmbed } = require('../utils/cardGame');
 const { createRoom, joinRoom, leaveRoom, cancelRoom, startRoomGame, getRoom } = require('../handlers/pvpGameHandler');
-const { createPvpLobbyPayload, createPvpResultPayload, createPvpCancelledPayload } = require('../utils/pvpPanelBuilder');
-const { playSlot, createSlotResultEmbed, createSlotRulesEmbed, createSlotActionRows, createSlotPromptPayload } = require('../utils/slotGame');
+const { createPvpLobbyPayload, createPvpResultPayload, createPvpDealingPayload, createPvpCancelledPayload } = require('../utils/pvpPanelBuilder');
+const { playSlot, createSlotResultEmbed, createSlotSpinningEmbed, createSlotRulesEmbed, createSlotActionRows, createSlotPromptPayload } = require('../utils/slotGame');
 const { createSoloRpsPromptPayload, executeSoloRps } = require('../handlers/rpsSoloHandler');
 const { createRpsRoom, joinRpsRoom, makeRpsChoice, cancelRpsRoom, getRpsRoom } = require('../handlers/rpsPvpHandler');
 const { createRpsPvpLobbyPayload, createRpsPvpBattlePayload, createRpsPvpResultPayload, createRpsPvpCancelledPayload } = require('../utils/rpsPvpPanelBuilder');
 const { createSelectRecipientPayload, createTransferReceiptEmbed, getTradeOrNotifyChannel, refreshCoinPayPanel } = require('../utils/coinPayPanelBuilder');
+const { buildHistoryPayload } = require('../utils/historyPanelBuilder');
 const config = require('../config.json');
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
@@ -192,20 +195,68 @@ module.exports = {
             );
           }
 
+          await interaction.deferReply();
+
           // Trừ tiền cược & quay
           db.addXCCoin(userId, guildId, -betAmount);
           const result = playSlot(betAmount);
+
+          // Frame 1: Cả 3 trục đang xoay tít
+          await interaction.editReply({
+            embeds: [createSlotSpinningEmbed(interaction.user, betAmount, ['🌀', '🌀', '🌀'], '🌀 Cả 3 trục đang xoay tít...')],
+            components: []
+          });
+          await sleep(800);
+
+          // Frame 2: Trục 1 dừng lại
+          await interaction.editReply({
+            embeds: [createSlotSpinningEmbed(interaction.user, betAmount, [result.reelEmojis[0], '🌀', '🌀'], `✨ Trục 1 đã dừng ở ${result.reelEmojis[0]}! Đang hãm phanh trục 2 & 3...`)],
+            components: []
+          });
+          await sleep(800);
+
+          // Frame 3: Trục 2 dừng lại
+          await interaction.editReply({
+            embeds: [createSlotSpinningEmbed(interaction.user, betAmount, [result.reelEmojis[0], result.reelEmojis[1], '🌀'], `🔥 HỒI HỘP! Đã dừng [ ${result.reelEmojis[0]} | ${result.reelEmojis[1]} ]! Trục 3 đang chậm dần...`)],
+            components: []
+          });
+          await sleep(1000);
 
           if (result.payout > 0) {
             db.addXCCoin(userId, guildId, result.payout);
           }
           db.addXp(userId, guildId, result.earnedXp);
 
+          // Ghi nhận lịch sử đấu
+          const profit = result.payout - betAmount;
+          db.addGameHistory({
+            userId,
+            guildId,
+            game: 'slot',
+            gameName: '🎰 Máy Quay Slot',
+            betAmount,
+            result: result.winType === 'JACKPOT' ? 'JACKPOT' : (result.winType === 'TRIPLE' ? 'WIN' : 'LOSE'),
+            profit,
+            details: `[ ${result.reelEmojis.join(' | ')} ] - ${result.title}`,
+            opponent: 'Máy Slot 🎰'
+          });
+
           const updatedUser = db.getUser(userId, guildId);
           const embed = createSlotResultEmbed(interaction.user, result, updatedUser.xccoin || 0);
 
-          await interaction.reply({ embeds: [embed], components: [createSlotActionRows()] });
+          await interaction.editReply({ embeds: [embed], components: [createSlotActionRows()] });
           setTimeout(() => interaction.deleteReply().catch(() => { }), 15000);
+        }
+        else if (interaction.customId === 'btn_game_history') {
+          await interaction.deferReply({ ephemeral: true });
+          const payload = buildHistoryPayload({
+            targetUser: interaction.user,
+            guildId,
+            page: 1,
+            filter: 'ALL',
+            viewMode: 'HISTORY'
+          });
+          await interaction.editReply(payload);
         }
         else if (interaction.customId === 'btn_game_slot_rules') {
           await interaction.deferReply({ ephemeral: true });
@@ -327,13 +378,20 @@ module.exports = {
             return replyEphemeralAutoDelete(interaction, '❌ Cần ít nhất 2 người chơi để bắt đầu!');
           }
 
+          // Hiệu ứng chia bài và hồi hộp lật bài
+          await interaction.update(createPvpDealingPayload(room, `🃏 Đang xào bộ bài 52 lá và chia bài cho ${room.players.length} người chơi...`));
+          await sleep(1000);
+
+          await interaction.editReply(createPvpDealingPayload(room, `👀 Các đấu thủ đang mở bài và so điểm từng tụ...`)).catch(() => {});
+          await sleep(1000);
+
           const result = startRoomGame(roomId);
           if (!result.success) {
             return replyEphemeralAutoDelete(interaction, `❌ ${result.reason}`);
           }
 
           const payload = createPvpResultPayload(result);
-          await interaction.update(payload);
+          await interaction.editReply(payload);
 
           // Sau khi kết thúc ván tự động xóa bàn chơi sau 15 giây
           setTimeout(async () => {
@@ -448,6 +506,48 @@ module.exports = {
           }
         }
 
+        // --- Nút Điều Hướng & Lọc Lịch Sử Đấu (History) ---
+        else if (interaction.customId.startsWith('btn_hist_')) {
+          if (interaction.customId === 'btn_hist_page_indicator') {
+            return interaction.deferUpdate().catch(() => { });
+          }
+
+          const parts = interaction.customId.split('_');
+          const action = parts[2]; // first, prev, next, last, mode, filter
+
+          let page = 1;
+          let filter = 'ALL';
+          let viewMode = 'HISTORY';
+          let targetUserId = userId;
+
+          if (action === 'first') {
+            targetUserId = parts[3];
+            filter = parts[4] || 'ALL';
+            page = 1;
+            viewMode = 'HISTORY';
+          } else if (action === 'prev' || action === 'next' || action === 'last') {
+            targetUserId = parts[3];
+            filter = parts[4] || 'ALL';
+            page = parseInt(parts[5], 10) || 1;
+            viewMode = 'HISTORY';
+          } else if (action === 'mode') {
+            const subMode = parts[3]; // stats hoặc list
+            targetUserId = parts[4];
+            filter = parts[5] || 'ALL';
+            viewMode = subMode === 'stats' ? 'STATS' : 'HISTORY';
+            page = 1;
+          } else if (action === 'filter') {
+            targetUserId = parts[3];
+            filter = parts[4] || 'ALL';
+            viewMode = parts[5] || 'HISTORY';
+            page = 1;
+          }
+
+          const targetUser = await interaction.client.users.fetch(targetUserId).catch(() => null) || interaction.user;
+          const payload = buildHistoryPayload({ targetUser, guildId, page, filter, viewMode });
+          await interaction.update(payload).catch(() => { });
+        }
+
         // --- C. Nút trên Bảng Chuyển Tiền (Coin Pay) ---
         else if (interaction.customId === 'btn_coinpay_start') {
           try {
@@ -539,10 +639,43 @@ module.exports = {
           db.addXCCoin(userId, guildId, -amount);
           const result = playSlot(amount);
 
+          // Hiệu ứng quay từng trục hồi hộp
+          await interaction.editReply({
+            embeds: [createSlotSpinningEmbed(interaction.user, amount, ['🌀', '🌀', '🌀'], '🌀 Cả 3 trục đang xoay tít...')],
+            components: []
+          });
+          await sleep(800);
+
+          await interaction.editReply({
+            embeds: [createSlotSpinningEmbed(interaction.user, amount, [result.reelEmojis[0], '🌀', '🌀'], `✨ Trục 1 đã dừng ở ${result.reelEmojis[0]}! Đang hãm phanh trục 2 & 3...`)],
+            components: []
+          });
+          await sleep(800);
+
+          await interaction.editReply({
+            embeds: [createSlotSpinningEmbed(interaction.user, amount, [result.reelEmojis[0], result.reelEmojis[1], '🌀'], `🔥 HỒI HỘP! Đã dừng [ ${result.reelEmojis[0]} | ${result.reelEmojis[1]} ]! Trục 3 đang chậm dần...`)],
+            components: []
+          });
+          await sleep(1000);
+
           if (result.payout > 0) {
             db.addXCCoin(userId, guildId, result.payout);
           }
           db.addXp(userId, guildId, result.earnedXp);
+
+          // Ghi nhận lịch sử đấu
+          const profit = result.payout - amount;
+          db.addGameHistory({
+            userId,
+            guildId,
+            game: 'slot',
+            gameName: '🎰 Máy Quay Slot',
+            betAmount: amount,
+            result: result.winType === 'JACKPOT' ? 'JACKPOT' : (result.winType === 'TRIPLE' ? 'WIN' : 'LOSE'),
+            profit,
+            details: `[ ${result.reelEmojis.join(' | ')} ] - ${result.title}`,
+            opponent: 'Máy Slot 🎰'
+          });
 
           const updatedUser = db.getUser(userId, guildId);
           const embed = createSlotResultEmbed(interaction.user, result, updatedUser.xccoin || 0);
@@ -573,6 +706,19 @@ module.exports = {
           }
 
           const game = playBaiCao();
+
+          // Bước 1: Chia 3 lá bài úp
+          await interaction.editReply({
+            embeds: [createDealingBaiCaoEmbed(interaction.user, amount, '🃏 Đang xào bộ bài 52 lá và chia bài cho 2 tụ...')]
+          });
+          await sleep(900);
+
+          // Bước 2: Nặn bài (mở 2 lá đầu, lá thứ 3 đang nặn)
+          await interaction.editReply({
+            embeds: [createPeekingBaiCaoEmbed(interaction.user, amount, game.playerCards, game.botCards)]
+          });
+          await sleep(1100);
+
           let resultTitle = '';
           let resultColor = config.colors.primary;
           let balanceChangeText = '';
@@ -592,6 +738,19 @@ module.exports = {
             resultColor = config.colors.gold;
             balanceChangeText = '±0 XCCoin (Hoàn lại 100% tiền cược)';
           }
+
+          // Ghi nhận lịch sử đấu
+          db.addGameHistory({
+            userId,
+            guildId,
+            game: 'baicao_solo',
+            gameName: '🃏 Bài Cào (Solo)',
+            betAmount: amount,
+            result: game.result,
+            profit: game.result === 'WIN' ? amount : (game.result === 'LOSE' ? -amount : 0),
+            details: `Bạn: ${game.playerHand.name} (${game.playerCards.map(c => c.display).join(' ')}) vs Bot: ${game.botHand.name} (${game.botCards.map(c => c.display).join(' ')})`,
+            opponent: 'Bot 🤖'
+          });
 
           const earnedXp = levelHandler.calculateCardGameXp(game.result, game.playerHand, amount);
           db.addXp(userId, guildId, earnedXp);

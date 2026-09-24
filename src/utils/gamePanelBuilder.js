@@ -3,7 +3,7 @@ const config = require('../config.json');
 
 /**
  * Tạo giao diện Bảng Khu Trò Chơi XCCoin (Mini-Game Panel - /setgame)
- * Gồm: Slot Game Nổ Hũ, Bài Cào (Bot & PvP), Kéo Xì Dách (Bot & PvP)
+ * Gồm: Slot Game Nổ Hũ, Bài Cào (Bot & PvP), Oẳn Tù Tì (Bot & PvP)
  */
 function createGamePanel() {
   const embed = new EmbedBuilder()
@@ -95,7 +95,22 @@ function createGamePanel() {
       .setStyle(ButtonStyle.Secondary)
   );
 
-  return { embeds: [embed], components: [row1, row2] };
+  // Hàng nút 3: Lịch sử đấu và Tiện ích người chơi
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('btn_game_history')
+      .setLabel('Lịch Sử Đấu Của Bạn')
+      .setEmoji('📜')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('btn_coinpay_balance')
+      .setLabel('Ví XCCoin')
+      .setEmoji('💳')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return { embeds: [embed], components: [row1, row2, row3] };
 }
 
 module.exports = {

@@ -224,13 +224,31 @@ function startRoomGame(roomId) {
     w.earnedXp = winXp;
   }
 
-  // Các người chơi khác nhận XP an ủi (tu vi cọ xát)
+  // Ghi nhận lịch sử đấu & trao XP cho tất cả người chơi
   for (const p of playerHands) {
-    if (!winnerIds.has(p.userId)) {
+    const isWinner = winnerIds.has(p.userId);
+    const profit = isWinner ? (payoutPerWinner - room.amount) : -room.amount;
+    if (!isWinner) {
       const partXp = levelHandler.calculatePvpCardGameXp(false, p.hand, room.amount);
       db.addXp(p.userId, room.guildId, partXp);
       p.earnedXp = partXp;
     }
+    const opponentNames = room.players
+      .filter(o => o.userId !== p.userId)
+      .map(o => o.username)
+      .join(', ');
+
+    db.addGameHistory({
+      userId: p.userId,
+      guildId: room.guildId,
+      game: 'baicao_pvp',
+      gameName: '👥 Bài Cào (PvP)',
+      betAmount: room.amount,
+      result: isWinner ? 'WIN' : 'LOSE',
+      profit,
+      details: `${p.hand.name} (${p.cards.map(c => c.display).join(' ')}) • Bàn ${room.players.length} người, Tổng hũ: ${totalPot.toLocaleString()} Coin`,
+      opponent: opponentNames || 'Những người khác'
+    });
   }
 
   room.status = 'ENDED';

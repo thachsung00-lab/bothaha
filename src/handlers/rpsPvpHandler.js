@@ -1,6 +1,6 @@
 const db = require('../database/db');
 const levelHandler = require('./levelHandler');
-const { determineWinner } = require('../utils/rpsGame');
+const { determineWinner, RPS_CHOICES } = require('../utils/rpsGame');
 
 // Lưu trữ các phòng Thách Đấu Oẳn Tù Tì đang hoạt động
 const rpsRooms = new Map();
@@ -184,6 +184,35 @@ function makeRpsChoice(roomId, userId, choiceId) {
       db.addXp(room.hostId, room.guildId, 10);
       db.addXp(room.challengerId, room.guildId, 10);
     }
+
+    const hostChoiceObj = RPS_CHOICES[room.hostChoice] || { emoji: '❓', name: room.hostChoice };
+    const challengerChoiceObj = RPS_CHOICES[room.challengerChoice] || { emoji: '❓', name: room.challengerChoice };
+
+    // Ghi lịch sử cho Host
+    db.addGameHistory({
+      userId: room.hostId,
+      guildId: room.guildId,
+      game: 'rps_pvp',
+      gameName: '⚔️ Oẳn Tù Tì (PvP)',
+      betAmount: room.amount,
+      result: isTie ? 'TIE' : (winnerId === room.hostId ? 'WIN' : 'LOSE'),
+      profit: isTie ? 0 : (winnerId === room.hostId ? room.amount : -room.amount),
+      details: `Bạn ra ${hostChoiceObj.emoji} (${hostChoiceObj.name}) vs Đối thủ ra ${challengerChoiceObj.emoji} (${challengerChoiceObj.name})`,
+      opponent: room.challengerUsername || `<@${room.challengerId}>`
+    });
+
+    // Ghi lịch sử cho Challenger
+    db.addGameHistory({
+      userId: room.challengerId,
+      guildId: room.guildId,
+      game: 'rps_pvp',
+      gameName: '⚔️ Oẳn Tù Tì (PvP)',
+      betAmount: room.amount,
+      result: isTie ? 'TIE' : (winnerId === room.challengerId ? 'WIN' : 'LOSE'),
+      profit: isTie ? 0 : (winnerId === room.challengerId ? room.amount : -room.amount),
+      details: `Bạn ra ${challengerChoiceObj.emoji} (${challengerChoiceObj.name}) vs Đối thủ ra ${hostChoiceObj.emoji} (${hostChoiceObj.name})`,
+      opponent: room.hostUsername || `<@${room.hostId}>`
+    });
 
     // Xóa phòng khỏi danh sách sau 30 giây
     setTimeout(() => {

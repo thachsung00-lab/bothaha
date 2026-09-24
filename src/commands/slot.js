@@ -1,6 +1,8 @@
 const { SlashCommandBuilder } = require('discord.js');
 const db = require('../database/db');
-const { playSlot, createSlotResultEmbed, createSlotActionRows, createSlotPromptPayload } = require('../utils/slotGame');
+const { playSlot, createSlotResultEmbed, createSlotActionRows, createSlotPromptPayload, createSlotSpinningEmbed } = require('../utils/slotGame');
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -46,10 +48,46 @@ module.exports = {
     // Quay Slot
     const result = playSlot(amount);
 
+    // Hiệu ứng quay từng trục hồi hộp
+    // Frame 1: Cả 3 trục đang xoay tít
+    await interaction.editReply({
+      embeds: [createSlotSpinningEmbed(interaction.user, amount, ['🌀', '🌀', '🌀'], '🌀 Cả 3 trục đang xoay tít...')],
+      components: []
+    });
+    await sleep(800);
+
+    // Frame 2: Trục 1 dừng lại
+    await interaction.editReply({
+      embeds: [createSlotSpinningEmbed(interaction.user, amount, [result.reelEmojis[0], '🌀', '🌀'], `✨ Trục 1 đã dừng ở ${result.reelEmojis[0]}! Đang hãm phanh trục 2 & 3...`)],
+      components: []
+    });
+    await sleep(800);
+
+    // Frame 3: Trục 2 dừng lại
+    await interaction.editReply({
+      embeds: [createSlotSpinningEmbed(interaction.user, amount, [result.reelEmojis[0], result.reelEmojis[1], '🌀'], `🔥 HỒI HỘP! Đã dừng [ ${result.reelEmojis[0]} | ${result.reelEmojis[1]} ]! Trục 3 đang chậm dần...`)],
+      components: []
+    });
+    await sleep(1000);
+
     // Trả thưởng nếu thắng
     if (result.payout > 0) {
       db.addXCCoin(userId, guildId, result.payout);
     }
+
+    // Ghi nhận lịch sử đấu
+    const profit = result.payout - amount;
+    db.addGameHistory({
+      userId,
+      guildId,
+      game: 'slot',
+      gameName: '🎰 Máy Quay Slot',
+      betAmount: amount,
+      result: result.winType === 'JACKPOT' ? 'JACKPOT' : (result.winType === 'TRIPLE' ? 'WIN' : 'LOSE'),
+      profit,
+      details: `[ ${result.reelEmojis.join(' | ')} ] - ${result.title}`,
+      opponent: 'Máy Slot 🎰'
+    });
 
     // Cộng XP tu vi
     db.addXp(userId, guildId, result.earnedXp);

@@ -128,8 +128,29 @@ function createPvpCancelledPayload(room, reason) {
   return { embeds: [embed], components: [] };
 }
 
+/**
+ * Tạo giao diện lúc đang chia bài và lật bài cho bàn PvP
+ */
+function createPvpDealingPayload(room, stepText) {
+  const embed = new EmbedBuilder()
+    .setColor(config.colors.primary)
+    .setTitle('🃏 BÀI CÀO NHÓM (PVP) • ĐANG XỬ LÝ VÁN ĐẤU...')
+    .setDescription(
+      `Sòng bài **${room.players.length}** người chơi đang diễn ra hồi hộp:\n\n` +
+      `⚡ **${stepText}**\n\n` +
+      `💰 **Tiền cược:** **${room.amount.toLocaleString()}** XCCoin / người\n` +
+      `🏆 **Tổng hũ thưởng (Pot):** 🌟 **${(room.amount * room.players.length).toLocaleString()}** XCCoin\n\n` +
+      `*Hệ thống đang xáo bộ bài 52 lá chuẩn và chia ngẫu nhiên cho từng tụ...*`
+    )
+    .setFooter({ text: '🎲 Chuẩn bị mở bài phân định thắng thua...' })
+    .setTimestamp();
+
+  return { embeds: [embed], components: [] };
+}
+
 module.exports = {
   createPvpLobbyPayload,
   createPvpResultPayload,
+  createPvpDealingPayload,
   createPvpCancelledPayload
 };

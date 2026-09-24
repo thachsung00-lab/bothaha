@@ -76,6 +76,19 @@ async function executeSoloRps(interaction, playerChoiceId, betAmount) {
     db.addXCCoin(userId, guildId, gameResult.payout);
   }
 
+  // Ghi nhận lịch sử đấu
+  db.addGameHistory({
+    userId,
+    guildId,
+    game: 'rps_solo',
+    gameName: '✊ Oẳn Tù Tì (Solo)',
+    betAmount,
+    result: gameResult.result,
+    profit: gameResult.netProfit,
+    details: `Bạn ra ${gameResult.playerChoice.emoji} (${gameResult.playerChoice.name}) vs Bot ra ${gameResult.botChoice.emoji} (${gameResult.botChoice.name})`,
+    opponent: 'Bot 🤖'
+  });
+
   // Cộng XP tu vi
   db.addXp(userId, guildId, gameResult.earnedXp);
 
